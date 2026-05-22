@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { getPostPriceCents, getStripe } from "@/lib/stripe";
 
+function getCheckoutProductName(school: string) {
+  const classYear = school.match(/20\d{2}/)?.[0] ?? "2031";
+  return `${classYear} Post!`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -29,14 +34,12 @@ export async function POST(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin;
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
-      customer_email: submission.email,
       line_items: [
         {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "ClassMate Connect Instagram Post",
-              description: `${submission.school} freshman intro submission`
+              name: getCheckoutProductName(submission.school)
             },
             recurring: {
               interval: "month"
