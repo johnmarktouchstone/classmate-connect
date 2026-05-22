@@ -203,7 +203,7 @@ export function SubmitForm({ priceLabel, school }: { priceLabel: string; school:
 
         <label className="grid gap-2">
           <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
-            Caption
+            Caption (don't forget your @)
             <span className="text-ink/50">
               {caption.length}/{maxCaptionLength}
             </span>
@@ -301,7 +301,7 @@ export function SubmitForm({ priceLabel, school }: { priceLabel: string; school:
           type="submit"
         >
           {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
-          Continue to payment ({priceLabel}/month)
+          Submit & Pay ({priceLabel})
         </button>
       </div>
     </form>
