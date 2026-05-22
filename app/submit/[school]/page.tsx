@@ -6,12 +6,12 @@ function formatMonthlyPrice() {
   const cents = Number(process.env.POST_PRICE_CENTS ?? "299");
   return new Intl.NumberFormat("en-US", {
     currency: "USD",
-    style: "currency"
+    style: "currency",
   }).format(cents / 100);
 }
 
 export default async function SubmitPage({
-  params
+  params,
 }: {
   params: Promise<{ school: string }>;
 }) {
@@ -26,13 +26,17 @@ export default async function SubmitPage({
 
   return (
     <main className="min-h-screen bg-linen px-4 py-6 text-ink sm:py-10">
-      <section className="mx-auto grid max-w-3xl gap-6">
+      <section className="mx-auto grid max-w-6xl gap-6">
         <header className="rounded-lg bg-white p-5 shadow-soft sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand">ClassMate Connect</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{school.displayName}!</h1>
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand">
+            ClassMate Connect
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+            {school.displayName}!
+          </h1>
           <p className="mt-3 text-base leading-7 text-ink/70">
-            After you submit this form, your post will be reviewed and posted within 24 hours. DM us
-            with any questions!
+            After you submit this form, your post will be reviewed and posted
+            within 24 hours. DM us with any questions!
           </p>
         </header>
 
