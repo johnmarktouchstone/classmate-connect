@@ -59,15 +59,6 @@ export async function POST(request: NextRequest) {
       cancel_url: `${siteUrl}/cancel`
     });
 
-    const { error: updateError } = await supabase
-      .from("submissions")
-      .update({ stripe_session_id: session.id })
-      .eq("id", submission.id);
-
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
-    }
-
     return NextResponse.json({ url: session.url });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create checkout session.";

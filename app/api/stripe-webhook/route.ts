@@ -35,12 +35,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const { error } = await createServiceSupabaseClient()
+    const supabase = createServiceSupabaseClient();
+    const { error } = await supabase
       .from("submissions")
       .update({
         payment_status: "paid",
-        post_status: "needs_review",
-        stripe_session_id: session.id
+        post_status: "needs_review"
       })
       .eq("id", submissionId);
 
