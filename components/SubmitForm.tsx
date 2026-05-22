@@ -56,6 +56,65 @@ function formatPreviewHandle(handle: string) {
   return trimmedHandle.startsWith("@") ? trimmedHandle : `@${trimmedHandle}`;
 }
 
+function CroppedPreviewImage({
+  alt,
+  className = "",
+  preview,
+}: {
+  alt: string;
+  className?: string;
+  preview: Preview;
+}) {
+  const [croppedUrl, setCroppedUrl] = useState("");
+  const croppedUrlRef = useRef("");
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function renderCrop() {
+      const croppedFile = await createInstagramCroppedFile(preview, 0);
+      const nextUrl = URL.createObjectURL(croppedFile);
+
+      if (isCancelled) {
+        URL.revokeObjectURL(nextUrl);
+        return;
+      }
+
+      setCroppedUrl((currentUrl) => {
+        if (currentUrl) URL.revokeObjectURL(currentUrl);
+        croppedUrlRef.current = nextUrl;
+        return nextUrl;
+      });
+    }
+
+    void renderCrop();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [preview.crop.x, preview.crop.y, preview.crop.zoom, preview.url]);
+
+  useEffect(() => {
+    return () => {
+      if (croppedUrlRef.current) {
+        URL.revokeObjectURL(croppedUrlRef.current);
+      }
+    };
+  }, []);
+
+  if (!croppedUrl) {
+    return <div className={`h-full w-full bg-ink/5 ${className}`} />;
+  }
+
+  return (
+    <img
+      alt={alt}
+      className={`h-full w-full object-cover ${className}`}
+      src={croppedUrl}
+    />
+  );
+}
+
 function InstagramPreview({
   caption,
   className = "",
@@ -72,7 +131,6 @@ function InstagramPreview({
   const previewHandle = formatPreviewHandle(instagramHandle);
   const firstPreview = previews[0];
   const captionText = caption.trim() || "Your caption will appear here.";
-  const crop = firstPreview?.crop ?? defaultCrop;
 
   return (
     <aside
@@ -97,16 +155,11 @@ function InstagramPreview({
           </div>
         </div>
 
-        <div className="relative grid aspect-[4/5] place-items-center bg-linen">
+        <div className="relative grid aspect-[4/5] place-items-center overflow-hidden bg-linen">
           {firstPreview ? (
-            <img
+            <CroppedPreviewImage
               alt="First uploaded photo preview"
-              className="h-full w-full object-cover"
-              src={firstPreview.url}
-              style={{
-                objectPosition: `${50 + crop.x / 2}% ${50 + crop.y / 2}%`,
-                transform: `scale(${crop.zoom})`,
-              }}
+              preview={firstPreview}
             />
           ) : (
             <p className="max-w-48 px-4 text-center text-sm font-medium leading-6 text-ink/55">
@@ -514,7 +567,7 @@ export function SubmitForm({
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {previews.map((preview, index) => (
                     <div
-                      className={`relative aspect-square overflow-hidden rounded-lg bg-ink/5 ring-offset-2 transition ${
+                      className={`relative aspect-[4/5] overflow-hidden rounded-lg bg-ink/5 ring-offset-2 transition ${
                         selectedPhotoIndex === index
                           ? "ring-2 ring-brand"
                           : "ring-1 ring-ink/10"
@@ -527,16 +580,9 @@ export function SubmitForm({
                         onClick={() => setSelectedPhotoIndex(index)}
                         type="button"
                       >
-                        <img
+                        <CroppedPreviewImage
                           alt={`Upload preview ${index + 1}`}
-                          className="h-full w-full object-cover"
-                          src={preview.url}
-                          style={{
-                            objectPosition: `${50 + preview.crop.x / 2}% ${
-                              50 + preview.crop.y / 2
-                            }%`,
-                            transform: `scale(${preview.crop.zoom})`,
-                          }}
+                          preview={preview}
                         />
                       </button>
                       <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-ink shadow">
@@ -581,16 +627,9 @@ export function SubmitForm({
 
                     <div className="mx-auto w-full max-w-56 overflow-hidden rounded-lg bg-white shadow-sm">
                       <div className="relative aspect-[4/5] overflow-hidden bg-ink/5">
-                        <img
+                        <CroppedPreviewImage
                           alt={`4:5 crop preview for upload ${selectedPhotoIndex + 1}`}
-                          className="h-full w-full object-cover"
-                          src={selectedPreview.url}
-                          style={{
-                            objectPosition: `${50 + selectedPreview.crop.x / 2}% ${
-                              50 + selectedPreview.crop.y / 2
-                            }%`,
-                            transform: `scale(${selectedPreview.crop.zoom})`,
-                          }}
+                          preview={selectedPreview}
                         />
                       </div>
                     </div>
