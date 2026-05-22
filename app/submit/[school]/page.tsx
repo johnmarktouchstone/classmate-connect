@@ -31,8 +31,8 @@ export default async function SubmitPage({
           <p className="text-sm font-semibold uppercase tracking-wide text-brand">ClassMate Connect</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{school.displayName}!</h1>
           <p className="mt-3 text-base leading-7 text-ink/70">
-            Hi! After you submit this form, your post will be reviewed and posted within 24 hours!
-            Please dm us with any questions!
+            After you submit this form, your post will be reviewed and posted within 24 hours. DM us
+            with any questions!
           </p>
         </header>
 
