@@ -97,6 +97,37 @@ export function AdminDashboard() {
     }
   }
 
+  async function sendToMake(submissionId: string) {
+    setActionId(submissionId);
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/send-to-make", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password
+        },
+        body: JSON.stringify({ submission_id: submissionId })
+      });
+      const result = (await response.json()) as { submission?: Submission; error?: string };
+
+      if (!response.ok || !result.submission) {
+        throw new Error(result.error || "Unable to send submission to Make.");
+      }
+
+      setSubmissions((currentSubmissions) =>
+        currentSubmissions.map((submission) =>
+          submission.id === submissionId ? result.submission! : submission
+        )
+      );
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : "Unable to send submission to Make.");
+    } finally {
+      setActionId("");
+    }
+  }
+
   function onLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void loadSubmissions(filter, password);
@@ -253,8 +284,13 @@ export function AdminDashboard() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={actionId === submission.id || submission.post_status === "needs_review"}
-                        onClick={() => updateStatus(submission.id, "needs_review")}
+                        disabled={
+                          actionId === submission.id ||
+                          submission.payment_status !== "paid" ||
+                          submission.post_status === "sent_to_make" ||
+                          submission.post_status === "posted"
+                        }
+                        onClick={() => sendToMake(submission.id)}
                         type="button"
                       >
                         {actionId === submission.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
