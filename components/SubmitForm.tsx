@@ -42,11 +42,13 @@ function formatPreviewHandle(handle: string) {
 
 function InstagramPreview({
   caption,
+  className = "",
   instagramHandle,
   previews,
   school,
 }: {
   caption: string;
+  className?: string;
   instagramHandle: string;
   previews: Preview[];
   school: School;
@@ -56,7 +58,9 @@ function InstagramPreview({
   const captionText = caption.trim() || "Your caption will appear here.";
 
   return (
-    <aside className="rounded-lg bg-white p-5 shadow-soft lg:sticky lg:top-6 lg:self-start">
+    <aside
+      className={`rounded-lg bg-white p-5 shadow-soft lg:sticky lg:top-6 lg:self-start ${className}`}
+    >
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand">
           Preview
@@ -426,6 +430,14 @@ export function SubmitForm({
             )}
           </div>
 
+          <InstagramPreview
+            caption={caption}
+            className="lg:hidden"
+            instagramHandle={instagramHandle}
+            previews={previews}
+            school={school}
+          />
+
           <label className="flex items-start gap-3 rounded-lg bg-linen p-4">
             <input
               checked={consent}
@@ -475,6 +487,7 @@ export function SubmitForm({
 
       <InstagramPreview
         caption={caption}
+        className="hidden lg:block"
         instagramHandle={instagramHandle}
         previews={previews}
         school={school}
