@@ -39,9 +39,7 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: getCheckoutProductName(submission.school),
-              description:
-                "After submitting payment, your photos, bio, and caption will be sent to ClassMate Connect for review before posting."
+              name: getCheckoutProductName(submission.school)
             },
             recurring: {
               interval: "month"
