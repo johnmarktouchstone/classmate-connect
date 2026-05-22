@@ -10,10 +10,6 @@ function formatMonthlyPrice() {
   }).format(cents / 100);
 }
 
-function getSchoolName(displayName: string) {
-  return displayName.replace(/\s+Class of 2031$/, "");
-}
-
 export default async function SubmitPage({
   params
 }: {
@@ -27,18 +23,16 @@ export default async function SubmitPage({
   }
 
   const priceLabel = formatMonthlyPrice();
-  const schoolName = getSchoolName(school.displayName);
 
   return (
     <main className="min-h-screen bg-linen px-4 py-6 text-ink sm:py-10">
       <section className="mx-auto grid max-w-3xl gap-6">
         <header className="rounded-lg bg-white p-5 shadow-soft sm:p-8">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Get Featured on {school.instagramUsername}
-          </h1>
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand">ClassMate Connect</p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{school.displayName}!</h1>
           <p className="mt-3 text-base leading-7 text-ink/70">
-            Meet your future {schoolName} classmates before move-in. Submit your photos, caption, and
-            Instagram handle to be posted on the {schoolName} Class of 2031 page.
+            Hi! After you submit this form, your post will be reviewed and posted within 24 hours!
+            Please dm us with any questions!
           </p>
         </header>
 
