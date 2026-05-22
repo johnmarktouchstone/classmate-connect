@@ -31,8 +31,8 @@ export default async function SubmitPage({
           <p className="text-sm font-semibold uppercase tracking-wide text-brand">ClassMate Connect</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{school.displayName}</h1>
           <p className="mt-3 text-base leading-7 text-ink/70">
-            Submit your photos and caption for {school.instagramUsername}. After the form, you will start a
-            secure {priceLabel}/month subscription before your post goes to review.
+            Fill out this form to be automatically posted onto {school.instagramUsername}. Don't forget
+            your @ in your bio!
           </p>
         </header>
 
