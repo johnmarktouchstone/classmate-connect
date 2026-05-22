@@ -1,9 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
-import { requireEnv } from "@/lib/env";
 
 export function createBrowserSupabaseClient() {
-  return createClient(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Supabase is not configured for uploads yet.");
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
