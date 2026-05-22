@@ -23,8 +23,7 @@ export async function POST(request: Request) {
   }
 
   const updateValues: Record<string, string | null> = {
-    post_status: postStatus,
-    error_message: null
+    post_status: postStatus
   };
 
   if (postStatus === "posted") {
