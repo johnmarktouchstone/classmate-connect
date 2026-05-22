@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin;
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
+      customer_email: submission.email,
       line_items: [
         {
           price_data: {
