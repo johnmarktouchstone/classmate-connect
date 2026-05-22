@@ -15,7 +15,7 @@ type Preview = {
   url: string;
 };
 
-export function SubmitForm({ school }: { school: School }) {
+export function SubmitForm({ priceLabel, school }: { priceLabel: string; school: School }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
@@ -129,7 +129,20 @@ export function SubmitForm({ school }: { school: School }) {
       }
 
       setSubmissionId(result.submission_id);
-      setStatusMessage("");
+      setStatusMessage("Opening secure checkout...");
+
+      const checkoutResponse = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: result.submission_id })
+      });
+      const checkoutResult = (await checkoutResponse.json()) as { url?: string; error?: string };
+
+      if (!checkoutResponse.ok || !checkoutResult.url) {
+        throw new Error(checkoutResult.error || "Unable to start checkout.");
+      }
+
+      window.location.href = checkoutResult.url;
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Something went wrong.");
       setStatusMessage("");
@@ -278,7 +291,7 @@ export function SubmitForm({ school }: { school: School }) {
         {submissionId && (
           <p className="flex items-start gap-2 rounded-lg bg-brand/10 px-4 py-3 text-sm font-medium text-brand">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-            Submission saved. ID: {submissionId}
+            Submission saved. Redirecting to checkout...
           </p>
         )}
 
@@ -288,7 +301,7 @@ export function SubmitForm({ school }: { school: School }) {
           type="submit"
         >
           {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
-          Save submission
+          Continue to payment ({priceLabel}/month)
         </button>
       </div>
     </form>

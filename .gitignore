@@ -8,3 +8,4 @@ dist
 *.blocked
 *.log
 .DS_Store
+.vercel
