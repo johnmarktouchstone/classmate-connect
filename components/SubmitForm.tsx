@@ -26,9 +26,25 @@ import {
 } from "@/lib/submission-validation";
 
 type Preview = {
+  crop: CropSettings;
   file: File;
   url: string;
 };
+
+type CropSettings = {
+  x: number;
+  y: number;
+  zoom: number;
+};
+
+const defaultCrop: CropSettings = {
+  x: 0,
+  y: 0,
+  zoom: 1,
+};
+
+const instagramImageWidth = 1080;
+const instagramImageHeight = 1350;
 
 function formatPreviewHandle(handle: string) {
   const trimmedHandle = handle.trim();
@@ -56,6 +72,7 @@ function InstagramPreview({
   const previewHandle = formatPreviewHandle(instagramHandle);
   const firstPreview = previews[0];
   const captionText = caption.trim() || "Your caption will appear here.";
+  const crop = firstPreview?.crop ?? defaultCrop;
 
   return (
     <aside
@@ -86,6 +103,10 @@ function InstagramPreview({
               alt="First uploaded photo preview"
               className="h-full w-full object-cover"
               src={firstPreview.url}
+              style={{
+                objectPosition: `${50 + crop.x / 2}% ${50 + crop.y / 2}%`,
+                transform: `scale(${crop.zoom})`,
+              }}
             />
           ) : (
             <p className="max-w-48 px-4 text-center text-sm font-medium leading-6 text-ink/55">
@@ -119,6 +140,64 @@ function InstagramPreview({
   );
 }
 
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not prepare image for upload."));
+    image.src = src;
+  });
+}
+
+async function createInstagramCroppedFile(preview: Preview, index: number) {
+  const image = await loadImage(preview.url);
+  const canvas = document.createElement("canvas");
+  canvas.width = instagramImageWidth;
+  canvas.height = instagramImageHeight;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Could not prepare image for upload.");
+  }
+
+  const baseScale = Math.max(
+    instagramImageWidth / image.naturalWidth,
+    instagramImageHeight / image.naturalHeight,
+  );
+  const scale = baseScale * preview.crop.zoom;
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  const maxOffsetX = Math.max(0, (drawWidth - instagramImageWidth) / 2);
+  const maxOffsetY = Math.max(0, (drawHeight - instagramImageHeight) / 2);
+  const offsetX = (preview.crop.x / 100) * maxOffsetX;
+  const offsetY = (preview.crop.y / 100) * maxOffsetY;
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, instagramImageWidth, instagramImageHeight);
+  context.drawImage(
+    image,
+    (instagramImageWidth - drawWidth) / 2 - offsetX,
+    (instagramImageHeight - drawHeight) / 2 - offsetY,
+    drawWidth,
+    drawHeight,
+  );
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (nextBlob) => {
+        if (nextBlob) resolve(nextBlob);
+        else reject(new Error("Could not prepare image for upload."));
+      },
+      "image/jpeg",
+      0.92,
+    );
+  });
+
+  return new File([blob], `classmate-instagram-${index + 1}.jpg`, {
+    type: "image/jpeg",
+  });
+}
+
 export function SubmitForm({
   priceLabel,
   school,
@@ -136,6 +215,7 @@ export function SubmitForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [submissionId, setSubmissionId] = useState("");
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const previewsRef = useRef<Preview[]>([]);
 
   const canSubmit = useMemo(
@@ -175,27 +255,49 @@ export function SubmitForm({
     setSubmissionId("");
 
     const files = Array.from(event.target.files ?? []);
-    const nextFiles = [
-      ...previews.map((preview) => preview.file),
-      ...files,
-    ].slice(0, maxImages);
+    const nextFiles = files.slice(0, maxImages - previews.length);
 
-    if (nextFiles.some((file) => !file.type.startsWith("image/"))) {
+    if (files.some((file) => !file.type.startsWith("image/"))) {
       setError("Only image files are allowed.");
       event.target.value = "";
       return;
     }
 
-    previews.forEach((preview) => URL.revokeObjectURL(preview.url));
-    setPreviews(
-      nextFiles.map((file) => ({ file, url: URL.createObjectURL(file) })),
-    );
+    if (nextFiles.length === 0) {
+      event.target.value = "";
+      return;
+    }
+
+    setPreviews((currentPreviews) => [
+      ...currentPreviews,
+      ...nextFiles.map((file) => ({
+        crop: defaultCrop,
+        file,
+        url: URL.createObjectURL(file),
+      })),
+    ]);
+    setSelectedPhotoIndex(0);
     event.target.value = "";
   }
 
   function removePhoto(index: number) {
     URL.revokeObjectURL(previews[index].url);
-    setPreviews(previews.filter((_, currentIndex) => currentIndex !== index));
+    const nextPreviews = previews.filter((_, currentIndex) => currentIndex !== index);
+    setPreviews(nextPreviews);
+    setSelectedPhotoIndex((currentIndex) =>
+      Math.min(currentIndex, Math.max(0, nextPreviews.length - 1)),
+    );
+    setSubmissionId("");
+  }
+
+  function updateCrop(index: number, crop: Partial<CropSettings>) {
+    setPreviews((currentPreviews) =>
+      currentPreviews.map((preview, currentIndex) =>
+        currentIndex === index
+          ? { ...preview, crop: { ...preview.crop, ...crop } }
+          : preview,
+      ),
+    );
     setSubmissionId("");
   }
 
@@ -204,16 +306,18 @@ export function SubmitForm({
     const imageUrls: string[] = [];
 
     for (const [index, preview] of previews.entries()) {
-      setStatusMessage(`Uploading photo ${index + 1} of ${previews.length}...`);
+      setStatusMessage(`Cropping photo ${index + 1} of ${previews.length}...`);
 
-      const extension = preview.file.name.split(".").pop() || "jpg";
-      const path = `${school.slug}/${crypto.randomUUID()}.${extension.toLowerCase()}`;
+      const croppedFile = await createInstagramCroppedFile(preview, index);
+      const path = `${school.slug}/${crypto.randomUUID()}.jpg`;
+
+      setStatusMessage(`Uploading photo ${index + 1} of ${previews.length}...`);
 
       const { error: uploadError } = await supabase.storage
         .from("classmate-submissions")
-        .upload(path, preview.file, {
+        .upload(path, croppedFile, {
           cacheControl: "31536000",
-          contentType: preview.file.type,
+          contentType: croppedFile.type,
           upsert: false,
         });
 
@@ -229,6 +333,8 @@ export function SubmitForm({
 
     return imageUrls;
   }
+
+  const selectedPreview = previews[selectedPhotoIndex];
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -404,28 +510,143 @@ export function SubmitForm({
               Photos will be cropped to a 4:5 Instagram portrait format.
             </p>
             {previews.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {previews.map((preview, index) => (
-                  <div
-                    className="relative aspect-square overflow-hidden rounded-lg bg-ink/5"
-                    key={preview.url}
-                  >
-                    <img
-                      alt={`Upload preview ${index + 1}`}
-                      className="h-full w-full object-cover"
-                      src={preview.url}
-                    />
-                    <button
-                      aria-label="Remove photo"
-                      className="absolute right-2 top-2 rounded-full bg-white/95 p-1.5 text-ink shadow"
-                      disabled={isSubmitting}
-                      onClick={() => removePhoto(index)}
-                      type="button"
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {previews.map((preview, index) => (
+                    <div
+                      className={`relative aspect-square overflow-hidden rounded-lg bg-ink/5 ring-offset-2 transition ${
+                        selectedPhotoIndex === index
+                          ? "ring-2 ring-brand"
+                          : "ring-1 ring-ink/10"
+                      }`}
+                      key={preview.url}
                     >
-                      <X className="h-4 w-4" />
-                    </button>
+                      <button
+                        className="h-full w-full"
+                        disabled={isSubmitting}
+                        onClick={() => setSelectedPhotoIndex(index)}
+                        type="button"
+                      >
+                        <img
+                          alt={`Upload preview ${index + 1}`}
+                          className="h-full w-full object-cover"
+                          src={preview.url}
+                          style={{
+                            objectPosition: `${50 + preview.crop.x / 2}% ${
+                              50 + preview.crop.y / 2
+                            }%`,
+                            transform: `scale(${preview.crop.zoom})`,
+                          }}
+                        />
+                      </button>
+                      <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-ink shadow">
+                        {index + 1}
+                      </span>
+                      <button
+                        aria-label="Remove photo"
+                        className="absolute right-2 top-2 rounded-full bg-white/95 p-1.5 text-ink shadow"
+                        disabled={isSubmitting}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removePhoto(index);
+                        }}
+                        type="button"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedPreview && (
+                  <div className="grid gap-4 rounded-lg border border-ink/10 bg-linen p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-ink">
+                          Adjust photo {selectedPhotoIndex + 1}
+                        </p>
+                        <p className="text-xs text-ink/55">
+                          Drag the sliders so the 4:5 crop looks right.
+                        </p>
+                      </div>
+                      <button
+                        className="rounded-lg border border-ink/15 bg-white px-3 py-2 text-xs font-semibold text-ink transition hover:bg-ink/5"
+                        disabled={isSubmitting}
+                        onClick={() => updateCrop(selectedPhotoIndex, defaultCrop)}
+                        type="button"
+                      >
+                        Reset
+                      </button>
+                    </div>
+
+                    <div className="mx-auto w-full max-w-56 overflow-hidden rounded-lg bg-white shadow-sm">
+                      <div className="relative aspect-[4/5] overflow-hidden bg-ink/5">
+                        <img
+                          alt={`4:5 crop preview for upload ${selectedPhotoIndex + 1}`}
+                          className="h-full w-full object-cover"
+                          src={selectedPreview.url}
+                          style={{
+                            objectPosition: `${50 + selectedPreview.crop.x / 2}% ${
+                              50 + selectedPreview.crop.y / 2
+                            }%`,
+                            transform: `scale(${selectedPreview.crop.zoom})`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold text-ink/70">Zoom</span>
+                      <input
+                        disabled={isSubmitting}
+                        max="2"
+                        min="1"
+                        onChange={(event) =>
+                          updateCrop(selectedPhotoIndex, {
+                            zoom: Number(event.target.value),
+                          })
+                        }
+                        step="0.01"
+                        type="range"
+                        value={selectedPreview.crop.zoom}
+                      />
+                    </label>
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold text-ink/70">
+                        Move left / right
+                      </span>
+                      <input
+                        disabled={isSubmitting}
+                        max="100"
+                        min="-100"
+                        onChange={(event) =>
+                          updateCrop(selectedPhotoIndex, {
+                            x: Number(event.target.value),
+                          })
+                        }
+                        type="range"
+                        value={selectedPreview.crop.x}
+                      />
+                    </label>
+                    <label className="grid gap-2">
+                      <span className="text-xs font-semibold text-ink/70">
+                        Move up / down
+                      </span>
+                      <input
+                        disabled={isSubmitting}
+                        max="100"
+                        min="-100"
+                        onChange={(event) =>
+                          updateCrop(selectedPhotoIndex, {
+                            y: Number(event.target.value),
+                          })
+                        }
+                        type="range"
+                        value={selectedPreview.crop.y}
+                      />
+                    </label>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
