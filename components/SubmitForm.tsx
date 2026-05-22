@@ -76,7 +76,7 @@ function InstagramPreview({
           </div>
         </div>
 
-        <div className="relative grid aspect-square place-items-center bg-linen">
+        <div className="relative grid aspect-[4/5] place-items-center bg-linen">
           {firstPreview ? (
             <img
               alt="First uploaded photo preview"
@@ -396,6 +396,9 @@ export function SubmitForm({
                 type="file"
               />
             </label>
+            <p className="text-sm leading-6 text-ink/55">
+              Photos will be cropped to a 4:5 Instagram portrait format.
+            </p>
             {previews.length > 0 && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {previews.map((preview, index) => (
