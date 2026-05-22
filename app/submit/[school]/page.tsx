@@ -29,9 +29,9 @@ export default async function SubmitPage({
       <section className="mx-auto grid max-w-3xl gap-6">
         <header className="rounded-lg bg-white p-5 shadow-soft sm:p-8">
           <p className="text-sm font-semibold uppercase tracking-wide text-brand">ClassMate Connect</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{school.displayName}</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Class of 2031</h1>
           <p className="mt-3 text-base leading-7 text-ink/70">
-            Fill out this form to be automatically posted onto {school.instagramUsername}. Don't forget
+            Fill out this form to be automatically posted onto {school.instagramUsername}! Don't forget
             your @ in your bio!
           </p>
         </header>
