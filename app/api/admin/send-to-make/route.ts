@@ -15,11 +15,18 @@ type SubmissionForMake = {
 };
 
 function buildMakePayload(submission: SubmissionForMake) {
+  const files = submission.image_urls.map((url) => ({
+    media_type: "Image",
+    photo_url: url,
+    url
+  }));
+
   return {
     submission_id: submission.id,
     school: submission.school,
     caption: submission.caption,
     image_urls: submission.image_urls,
+    files,
     full_name: submission.full_name,
     email: submission.email,
     instagram_handle: submission.instagram_handle
