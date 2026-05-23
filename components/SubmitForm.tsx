@@ -132,6 +132,7 @@ function CroppedPreviewImage({
 }
 
 function InstagramPreview({
+  caption,
   className = "",
   instagramHandle,
   onSelectPhoto,
@@ -139,6 +140,7 @@ function InstagramPreview({
   selectedPhotoIndex,
   school,
 }: {
+  caption: string;
   className?: string;
   instagramHandle: string;
   onSelectPhoto: (index: number) => void;
@@ -148,6 +150,7 @@ function InstagramPreview({
 }) {
   const previewHandle = formatPreviewHandle(instagramHandle);
   const selectedPreview = previews[selectedPhotoIndex] ?? previews[0];
+  const captionText = caption.trim() || "Your caption will appear here.";
   const hasMultiplePhotos = previews.length > 1;
 
   function showPreviousPhoto() {
@@ -230,7 +233,9 @@ function InstagramPreview({
           </div>
 
           <p className="break-words text-sm leading-6 text-ink">
-            <span className="font-semibold">{previewHandle}</span>
+            <span className={caption.trim() ? "" : "text-ink/50"}>
+              {captionText}
+            </span>
           </p>
         </div>
       </div>
@@ -841,6 +846,7 @@ export function SubmitForm({
           </div>
 
           <InstagramPreview
+            caption={caption}
             className="lg:hidden"
             instagramHandle={instagramHandle}
             onSelectPhoto={setSelectedPhotoIndex}
@@ -897,6 +903,7 @@ export function SubmitForm({
       </form>
 
       <InstagramPreview
+        caption={caption}
         className="hidden lg:block"
         instagramHandle={instagramHandle}
         onSelectPhoto={setSelectedPhotoIndex}
