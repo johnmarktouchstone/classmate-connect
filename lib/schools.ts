@@ -24,6 +24,11 @@ export const schools: School[] = [
     slug: "rutgers2031",
     displayName: "Rutgers Class of 2031",
     instagramUsername: "@rutgersclassof2031"
+  },
+  {
+    slug: "washu2031",
+    displayName: "WashU Class of 2031",
+    instagramUsername: "@washuclassof2031"
   }
 ];
 
