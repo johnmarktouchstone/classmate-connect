@@ -16,7 +16,7 @@ type SubmissionForMake = {
 
 function buildMakePayload(submission: SubmissionForMake) {
   const files = submission.image_urls.map((url) => ({
-    media_type: "image",
+    media_type: "IMAGE",
     photo_url: url,
     url
   }));
@@ -26,6 +26,8 @@ function buildMakePayload(submission: SubmissionForMake) {
     school: submission.school,
     caption: submission.caption,
     image_urls: submission.image_urls,
+    image_count: submission.image_urls.length,
+    first_image_url: submission.image_urls[0] ?? null,
     files,
     full_name: submission.full_name,
     email: submission.email,
