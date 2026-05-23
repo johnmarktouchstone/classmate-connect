@@ -17,6 +17,33 @@ const statusStyles: Record<PostStatus, string> = {
   failed: "bg-rose-100 text-rose-700"
 };
 
+function getReviewPriority(submission: Submission) {
+  if (submission.payment_status === "paid" && submission.post_status === "needs_review") return 0;
+  if (submission.post_status === "needs_review") return 1;
+  if (submission.payment_status === "paid") return 2;
+  return 3;
+}
+
+function sortSubmissions(submissions: Submission[]) {
+  return [...submissions].sort((firstSubmission, secondSubmission) => {
+    const priorityDifference =
+      getReviewPriority(firstSubmission) - getReviewPriority(secondSubmission);
+
+    if (priorityDifference !== 0) return priorityDifference;
+
+    return (
+      new Date(secondSubmission.created_at).getTime() -
+      new Date(firstSubmission.created_at).getTime()
+    );
+  });
+}
+
+function getApproveLabel(submission: Submission) {
+  if (submission.post_status === "sent_to_make") return "Sent to Make";
+  if (submission.post_status === "posted") return "Posted";
+  return "Approve";
+}
+
 export function AdminDashboard() {
   const [password, setPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -51,7 +78,7 @@ export function AdminDashboard() {
         throw new Error(result.error || "Unable to load submissions.");
       }
 
-      setSubmissions(result.submissions ?? []);
+      setSubmissions(sortSubmissions(result.submissions ?? []));
       setIsUnlocked(true);
       sessionStorage.setItem(adminPasswordStorageKey, nextPassword);
     } catch (loadError) {
@@ -86,8 +113,10 @@ export function AdminDashboard() {
       }
 
       setSubmissions((currentSubmissions) =>
-        currentSubmissions.map((submission) =>
-          submission.id === submissionId ? result.submission! : submission
+        sortSubmissions(
+          currentSubmissions.map((submission) =>
+            submission.id === submissionId ? result.submission! : submission
+          )
         )
       );
     } catch (updateError) {
@@ -117,8 +146,10 @@ export function AdminDashboard() {
       }
 
       setSubmissions((currentSubmissions) =>
-        currentSubmissions.map((submission) =>
-          submission.id === submissionId ? result.submission! : submission
+        sortSubmissions(
+          currentSubmissions.map((submission) =>
+            submission.id === submissionId ? result.submission! : submission
+          )
         )
       );
     } catch (sendError) {
@@ -286,7 +317,6 @@ export function AdminDashboard() {
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={
                           actionId === submission.id ||
-                          submission.payment_status !== "paid" ||
                           submission.post_status === "sent_to_make" ||
                           submission.post_status === "posted"
                         }
@@ -294,7 +324,7 @@ export function AdminDashboard() {
                         type="button"
                       >
                         {actionId === submission.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        Approve
+                        {getApproveLabel(submission)}
                       </button>
                       <button
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"

@@ -54,13 +54,6 @@ export async function POST(request: Request) {
     );
   }
 
-  if (submission.payment_status !== "paid") {
-    return NextResponse.json(
-      { error: "Only paid submissions can be sent to Make." },
-      { status: 400 }
-    );
-  }
-
   const payload = buildMakePayload(submission);
 
   try {
