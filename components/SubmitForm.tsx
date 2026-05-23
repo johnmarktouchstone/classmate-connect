@@ -3,6 +3,7 @@
 import {
   ChangeEvent,
   FormEvent,
+  PointerEvent,
   useEffect,
   useMemo,
   useRef,
@@ -11,6 +12,8 @@ import {
 import {
   Camera,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   Loader2,
   MessageCircle,
@@ -45,6 +48,19 @@ const defaultCrop: CropSettings = {
 
 const instagramImageWidth = 1080;
 const instagramImageHeight = 1350;
+const minZoom = 1;
+const maxZoom = 2;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getDistance(
+  firstPoint: { x: number; y: number },
+  secondPoint: { x: number; y: number },
+) {
+  return Math.hypot(firstPoint.x - secondPoint.x, firstPoint.y - secondPoint.y);
+}
 
 function formatPreviewHandle(handle: string) {
   const trimmedHandle = handle.trim();
@@ -119,18 +135,33 @@ function InstagramPreview({
   caption,
   className = "",
   instagramHandle,
+  onSelectPhoto,
   previews,
+  selectedPhotoIndex,
   school,
 }: {
   caption: string;
   className?: string;
   instagramHandle: string;
+  onSelectPhoto: (index: number) => void;
   previews: Preview[];
+  selectedPhotoIndex: number;
   school: School;
 }) {
   const previewHandle = formatPreviewHandle(instagramHandle);
-  const firstPreview = previews[0];
+  const selectedPreview = previews[selectedPhotoIndex] ?? previews[0];
   const captionText = caption.trim() || "Your caption will appear here.";
+  const hasMultiplePhotos = previews.length > 1;
+
+  function showPreviousPhoto() {
+    if (!hasMultiplePhotos) return;
+    onSelectPhoto((selectedPhotoIndex - 1 + previews.length) % previews.length);
+  }
+
+  function showNextPhoto() {
+    if (!hasMultiplePhotos) return;
+    onSelectPhoto((selectedPhotoIndex + 1) % previews.length);
+  }
 
   return (
     <aside
@@ -156,10 +187,10 @@ function InstagramPreview({
         </div>
 
         <div className="relative grid aspect-[4/5] place-items-center overflow-hidden bg-linen">
-          {firstPreview ? (
+          {selectedPreview ? (
             <CroppedPreviewImage
-              alt="First uploaded photo preview"
-              preview={firstPreview}
+              alt={`Uploaded photo preview ${selectedPhotoIndex + 1}`}
+              preview={selectedPreview}
             />
           ) : (
             <p className="max-w-48 px-4 text-center text-sm font-medium leading-6 text-ink/55">
@@ -167,10 +198,30 @@ function InstagramPreview({
             </p>
           )}
 
-          {previews.length > 1 && (
+          {hasMultiplePhotos && (
             <span className="absolute right-3 top-3 rounded-full bg-ink/80 px-2.5 py-1 text-xs font-semibold text-white">
-              1 / {previews.length}
+              {selectedPhotoIndex + 1} / {previews.length}
             </span>
+          )}
+          {hasMultiplePhotos && (
+            <div className="absolute inset-x-3 top-1/2 flex -translate-y-1/2 justify-between">
+              <button
+                aria-label="Show previous preview photo"
+                className="grid h-9 w-9 place-items-center rounded-full bg-white/90 text-ink shadow transition hover:bg-white"
+                onClick={showPreviousPhoto}
+                type="button"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                aria-label="Show next preview photo"
+                className="grid h-9 w-9 place-items-center rounded-full bg-white/90 text-ink shadow transition hover:bg-white"
+                onClick={showNextPhoto}
+                type="button"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -190,6 +241,184 @@ function InstagramPreview({
         </div>
       </div>
     </aside>
+  );
+}
+
+function CropAdjuster({
+  disabled,
+  onReset,
+  onUpdateCrop,
+  preview,
+  selectedPhotoIndex,
+}: {
+  disabled: boolean;
+  onReset: () => void;
+  onUpdateCrop: (crop: Partial<CropSettings>) => void;
+  preview: Preview;
+  selectedPhotoIndex: number;
+}) {
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const gestureRef = useRef<{
+    distance: number;
+    pointerCount: number;
+    startCrop: CropSettings;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  function startGesture(nextPointers: Map<number, { x: number; y: number }>) {
+    const points = Array.from(nextPointers.values());
+
+    gestureRef.current = {
+      distance: points.length >= 2 ? getDistance(points[0], points[1]) : 0,
+      pointerCount: points.length,
+      startCrop: preview.crop,
+      x: points[0]?.x ?? 0,
+      y: points[0]?.y ?? 0,
+    };
+  }
+
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (disabled) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const nextPointers = new Map(pointersRef.current);
+    nextPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointersRef.current = nextPointers;
+    startGesture(nextPointers);
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (disabled || !gestureRef.current || !pointersRef.current.has(event.pointerId)) {
+      return;
+    }
+
+    const nextPointers = new Map(pointersRef.current);
+    nextPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointersRef.current = nextPointers;
+
+    const points = Array.from(nextPointers.values());
+    const rect = event.currentTarget.getBoundingClientRect();
+    const gesture = gestureRef.current;
+
+    if (points.length >= 2 && gesture.distance > 0) {
+      const nextDistance = getDistance(points[0], points[1]);
+      onUpdateCrop({
+        zoom: clamp(
+          gesture.startCrop.zoom * (nextDistance / gesture.distance),
+          minZoom,
+          maxZoom,
+        ),
+      });
+      return;
+    }
+
+    const deltaX = points[0].x - gesture.x;
+    const deltaY = points[0].y - gesture.y;
+
+    onUpdateCrop({
+      x: clamp(gesture.startCrop.x - (deltaX / rect.width) * 200, -100, 100),
+      y: clamp(gesture.startCrop.y - (deltaY / rect.height) * 200, -100, 100),
+    });
+  }
+
+  function onPointerUp(event: PointerEvent<HTMLDivElement>) {
+    const nextPointers = new Map(pointersRef.current);
+    nextPointers.delete(event.pointerId);
+    pointersRef.current = nextPointers;
+
+    if (nextPointers.size > 0) {
+      startGesture(nextPointers);
+    } else {
+      gestureRef.current = null;
+    }
+  }
+
+  return (
+    <div className="grid gap-4 rounded-lg border border-ink/10 bg-linen p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">
+            Adjust photo {selectedPhotoIndex + 1}
+          </p>
+          <p className="text-xs text-ink/55">
+            Drag the image or pinch to zoom. Sliders work too.
+          </p>
+        </div>
+        <button
+          className="rounded-lg border border-ink/15 bg-white px-3 py-2 text-xs font-semibold text-ink transition hover:bg-ink/5"
+          disabled={disabled}
+          onClick={onReset}
+          type="button"
+        >
+          Reset
+        </button>
+      </div>
+
+      <div className="mx-auto w-full max-w-56 overflow-hidden rounded-lg bg-white shadow-sm">
+        <div
+          className="relative aspect-[4/5] touch-none select-none overflow-hidden bg-ink/5"
+          onPointerCancel={onPointerUp}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        >
+          <CroppedPreviewImage
+            alt={`4:5 crop preview for upload ${selectedPhotoIndex + 1}`}
+            preview={preview}
+          />
+        </div>
+      </div>
+
+      <label className="grid gap-2">
+        <span className="text-xs font-semibold text-ink/70">Zoom</span>
+        <input
+          disabled={disabled}
+          max={maxZoom}
+          min={minZoom}
+          onChange={(event) =>
+            onUpdateCrop({
+              zoom: Number(event.target.value),
+            })
+          }
+          step="0.01"
+          type="range"
+          value={preview.crop.zoom}
+        />
+      </label>
+      <label className="grid gap-2">
+        <span className="text-xs font-semibold text-ink/70">
+          Move left / right
+        </span>
+        <input
+          disabled={disabled}
+          max="100"
+          min="-100"
+          onChange={(event) =>
+            onUpdateCrop({
+              x: Number(event.target.value),
+            })
+          }
+          type="range"
+          value={preview.crop.x}
+        />
+      </label>
+      <label className="grid gap-2">
+        <span className="text-xs font-semibold text-ink/70">Move up / down</span>
+        <input
+          disabled={disabled}
+          max="100"
+          min="-100"
+          onChange={(event) =>
+            onUpdateCrop({
+              y: Number(event.target.value),
+            })
+          }
+          type="range"
+          value={preview.crop.y}
+        />
+      </label>
+    </div>
   );
 }
 
@@ -605,86 +834,13 @@ export function SubmitForm({
                 </div>
 
                 {selectedPreview && (
-                  <div className="grid gap-4 rounded-lg border border-ink/10 bg-linen p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-ink">
-                          Adjust photo {selectedPhotoIndex + 1}
-                        </p>
-                        <p className="text-xs text-ink/55">
-                          Drag the sliders so the 4:5 crop looks right.
-                        </p>
-                      </div>
-                      <button
-                        className="rounded-lg border border-ink/15 bg-white px-3 py-2 text-xs font-semibold text-ink transition hover:bg-ink/5"
-                        disabled={isSubmitting}
-                        onClick={() => updateCrop(selectedPhotoIndex, defaultCrop)}
-                        type="button"
-                      >
-                        Reset
-                      </button>
-                    </div>
-
-                    <div className="mx-auto w-full max-w-56 overflow-hidden rounded-lg bg-white shadow-sm">
-                      <div className="relative aspect-[4/5] overflow-hidden bg-ink/5">
-                        <CroppedPreviewImage
-                          alt={`4:5 crop preview for upload ${selectedPhotoIndex + 1}`}
-                          preview={selectedPreview}
-                        />
-                      </div>
-                    </div>
-
-                    <label className="grid gap-2">
-                      <span className="text-xs font-semibold text-ink/70">Zoom</span>
-                      <input
-                        disabled={isSubmitting}
-                        max="2"
-                        min="1"
-                        onChange={(event) =>
-                          updateCrop(selectedPhotoIndex, {
-                            zoom: Number(event.target.value),
-                          })
-                        }
-                        step="0.01"
-                        type="range"
-                        value={selectedPreview.crop.zoom}
-                      />
-                    </label>
-                    <label className="grid gap-2">
-                      <span className="text-xs font-semibold text-ink/70">
-                        Move left / right
-                      </span>
-                      <input
-                        disabled={isSubmitting}
-                        max="100"
-                        min="-100"
-                        onChange={(event) =>
-                          updateCrop(selectedPhotoIndex, {
-                            x: Number(event.target.value),
-                          })
-                        }
-                        type="range"
-                        value={selectedPreview.crop.x}
-                      />
-                    </label>
-                    <label className="grid gap-2">
-                      <span className="text-xs font-semibold text-ink/70">
-                        Move up / down
-                      </span>
-                      <input
-                        disabled={isSubmitting}
-                        max="100"
-                        min="-100"
-                        onChange={(event) =>
-                          updateCrop(selectedPhotoIndex, {
-                            y: Number(event.target.value),
-                          })
-                        }
-                        type="range"
-                        value={selectedPreview.crop.y}
-                      />
-                    </label>
-                  </div>
+                  <CropAdjuster
+                    disabled={isSubmitting}
+                    onReset={() => updateCrop(selectedPhotoIndex, defaultCrop)}
+                    onUpdateCrop={(crop) => updateCrop(selectedPhotoIndex, crop)}
+                    preview={selectedPreview}
+                    selectedPhotoIndex={selectedPhotoIndex}
+                  />
                 )}
               </div>
             )}
@@ -694,7 +850,9 @@ export function SubmitForm({
             caption={caption}
             className="lg:hidden"
             instagramHandle={instagramHandle}
+            onSelectPhoto={setSelectedPhotoIndex}
             previews={previews}
+            selectedPhotoIndex={selectedPhotoIndex}
             school={school}
           />
 
@@ -749,7 +907,9 @@ export function SubmitForm({
         caption={caption}
         className="hidden lg:block"
         instagramHandle={instagramHandle}
+        onSelectPhoto={setSelectedPhotoIndex}
         previews={previews}
+        selectedPhotoIndex={selectedPhotoIndex}
         school={school}
       />
     </div>
