@@ -580,11 +580,12 @@ export function SubmitForm({ school }: { school: School }) {
   const previewsRef = useRef<Preview[]>([]);
 
   const emailIsValid = emailPattern.test(email.trim());
-  const aboutComplete =
+  const aboutFieldsComplete =
     fullName.trim() &&
-    emailIsValid &&
+    email.trim() &&
     instagramHandle.trim() &&
     caption.trim();
+  const aboutComplete = aboutFieldsComplete && emailIsValid;
   const photosComplete = previews.length > 0;
   const stepIndex =
     currentStep === "about"
@@ -621,8 +622,13 @@ export function SubmitForm({ school }: { school: School }) {
   function goToPhotos() {
     setError("");
 
-    if (!aboutComplete) {
-      setError("Please complete your name, Instagram handle, bio, and enter a valid email.");
+    if (!aboutFieldsComplete) {
+      setError("Please complete your name, email, Instagram handle, and bio.");
+      return;
+    }
+
+    if (!emailIsValid) {
+      setError("Invalid email.");
       return;
     }
 
@@ -937,7 +943,7 @@ export function SubmitForm({ school }: { school: School }) {
 
               <button
                 className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!aboutComplete || isSubmitting}
+                disabled={!aboutFieldsComplete || isSubmitting}
                 onClick={goToPhotos}
                 type="button"
               >
