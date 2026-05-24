@@ -62,6 +62,7 @@ const instagramImageWidth = 1080;
 const instagramImageHeight = 1350;
 const minZoom = 1;
 const maxZoom = 2;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -578,9 +579,10 @@ export function SubmitForm({ school }: { school: School }) {
   const [selectedTierId, setSelectedTierId] = useState<PostingTierId>(defaultPostingTierId);
   const previewsRef = useRef<Preview[]>([]);
 
+  const emailIsValid = emailPattern.test(email.trim());
   const aboutComplete =
     fullName.trim() &&
-    email.trim() &&
+    emailIsValid &&
     instagramHandle.trim() &&
     caption.trim();
   const photosComplete = previews.length > 0;
@@ -598,7 +600,7 @@ export function SubmitForm({ school }: { school: School }) {
   const canSubmit = useMemo(
     () =>
       fullName.trim() &&
-      email.trim() &&
+      emailIsValid &&
       instagramHandle.trim() &&
       caption.trim() &&
       previews.length > 0 &&
@@ -608,6 +610,7 @@ export function SubmitForm({ school }: { school: School }) {
       caption,
       consent,
       email,
+      emailIsValid,
       fullName,
       instagramHandle,
       isSubmitting,
@@ -619,7 +622,7 @@ export function SubmitForm({ school }: { school: School }) {
     setError("");
 
     if (!aboutComplete) {
-      setError("Please complete your name, email, Instagram handle, and bio.");
+      setError("Please complete your name, Instagram handle, bio, and enter a valid email.");
       return;
     }
 
