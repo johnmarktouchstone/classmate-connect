@@ -25,6 +25,9 @@ export type Submission = {
   make_sent_at: string | null;
   posted_at: string | null;
   error_message: string | null;
+  posting_tier: string | null;
+  posting_speed: string | null;
+  price_cents: number | null;
   created_at: string;
   updated_at: string;
 };

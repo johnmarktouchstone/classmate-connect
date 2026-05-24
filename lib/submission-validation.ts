@@ -1,4 +1,5 @@
 import { getSchool } from "@/lib/schools";
+import { getPostingTier } from "@/lib/posting-tiers";
 
 export const maxCaptionLength = 2200;
 export const maxImages = 10;
@@ -16,8 +17,10 @@ export function validateSubmissionInput(input: {
   caption: string;
   imageUrls: string[];
   consent: boolean;
+  postingTier: string;
 }) {
   if (!getSchool(input.school)) return "Unknown school page.";
+  if (!getPostingTier(input.postingTier)) return "Unknown posting speed.";
   if (!input.fullName.trim()) return "Full name is required.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
     return "A valid email is required.";

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDefaultPostingTier, getPostingTier } from "@/lib/posting-tiers";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { getPostPriceCents, getStripe } from "@/lib/stripe";
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceSupabaseClient();
     const { data: submission, error } = await supabase
       .from("submissions")
-      .select("id, school, email, full_name, payment_status")
+      .select("id, school, email, full_name, payment_status, posting_tier, posting_speed, price_cents")
       .eq("id", submissionId)
       .single();
 
@@ -33,6 +34,12 @@ export async function POST(request: NextRequest) {
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin;
     const stripe = getStripe();
+    const configuredTier = getPostingTier(submission.posting_tier);
+    const fallbackTier = getDefaultPostingTier();
+    const tierLabel = configuredTier?.label ?? fallbackTier.label;
+    const postingSpeed = submission.posting_speed ?? configuredTier?.speedLabel ?? fallbackTier.speedLabel;
+    const priceCents = submission.price_cents ?? configuredTier?.priceCents ?? getPostPriceCents();
+
     const session = await stripe.checkout.sessions.create({
       customer_email: submission.email,
       line_items: [
@@ -40,22 +47,29 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: getCheckoutProductName(submission.school)
+              description: postingSpeed,
+              name: `${getCheckoutProductName(submission.school)} - ${tierLabel}`
             },
             recurring: {
               interval: "month"
             },
-            unit_amount: getPostPriceCents()
+            unit_amount: priceCents
           },
           quantity: 1
         }
       ],
       metadata: {
+        posting_speed: postingSpeed,
+        posting_tier: submission.posting_tier ?? fallbackTier.id,
+        price_cents: String(priceCents),
         submission_id: submission.id
       },
       mode: "subscription",
       subscription_data: {
         metadata: {
+          posting_speed: postingSpeed,
+          posting_tier: submission.posting_tier ?? fallbackTier.id,
+          price_cents: String(priceCents),
           submission_id: submission.id
         }
       },

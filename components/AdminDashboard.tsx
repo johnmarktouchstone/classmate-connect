@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Check, Loader2, LockKeyhole, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { formatTierPrice } from "@/lib/posting-tiers";
 import { formatStatus, postStatuses, type PostStatus, type Submission } from "@/lib/submissions";
 
 type Filter = "all" | PostStatus;
@@ -310,6 +311,13 @@ export function AdminDashboard() {
                     <div className="flex flex-wrap gap-2 text-xs text-ink/50">
                       <span>ID: {submission.id}</span>
                       <span>Created: {new Date(submission.created_at).toLocaleString()}</span>
+                      {submission.posting_tier && (
+                        <span>
+                          Tier: {formatStatus(submission.posting_tier)} ·{" "}
+                          {formatTierPrice(submission.price_cents)} ·{" "}
+                          {submission.posting_speed}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">

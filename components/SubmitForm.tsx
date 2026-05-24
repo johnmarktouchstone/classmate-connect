@@ -30,6 +30,13 @@ import {
   maxImages,
   normalizeInstagramHandle,
 } from "@/lib/submission-validation";
+import {
+  defaultPostingTierId,
+  formatTierPrice,
+  getPostingTier,
+  postingTiers,
+  type PostingTierId,
+} from "@/lib/posting-tiers";
 
 type Preview = {
   crop: CropSettings;
@@ -43,7 +50,7 @@ type CropSettings = {
   zoom: number;
 };
 
-type FormStep = "about" | "photos" | "review";
+type FormStep = "about" | "photos" | "review" | "tier";
 
 const defaultCrop: CropSettings = {
   x: 0,
@@ -554,13 +561,7 @@ async function createInstagramCroppedFile(preview: Preview, index: number) {
   });
 }
 
-export function SubmitForm({
-  priceLabel,
-  school,
-}: {
-  priceLabel: string;
-  school: School;
-}) {
+export function SubmitForm({ school }: { school: School }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
@@ -574,6 +575,7 @@ export function SubmitForm({
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [currentStep, setCurrentStep] = useState<FormStep>("about");
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [selectedTierId, setSelectedTierId] = useState<PostingTierId>(defaultPostingTierId);
   const previewsRef = useRef<Preview[]>([]);
 
   const aboutComplete =
@@ -582,8 +584,16 @@ export function SubmitForm({
     instagramHandle.trim() &&
     caption.trim();
   const photosComplete = previews.length > 0;
-  const stepIndex = currentStep === "about" ? 1 : currentStep === "photos" ? 2 : 3;
-  const progressWidth = `${(stepIndex / 3) * 100}%`;
+  const stepIndex =
+    currentStep === "about"
+      ? 1
+      : currentStep === "photos"
+        ? 2
+        : currentStep === "review"
+          ? 3
+          : 4;
+  const progressWidth = `${(stepIndex / 4) * 100}%`;
+  const selectedTier = getPostingTier(selectedTierId) ?? postingTiers[0];
 
   const canSubmit = useMemo(
     () =>
@@ -625,6 +635,17 @@ export function SubmitForm({
     }
 
     setCurrentStep("review");
+  }
+
+  function goToTier() {
+    setError("");
+
+    if (!canSubmit) {
+      setError("Please confirm photo permission before choosing a posting speed.");
+      return;
+    }
+
+    setCurrentStep("tier");
   }
 
   useEffect(() => {
@@ -757,6 +778,7 @@ export function SubmitForm({
           instagram_handle: normalizeInstagramHandle(instagramHandle),
           caption,
           image_urls: imageUrls,
+          posting_tier: selectedTierId,
           consent,
         }),
       });
@@ -811,7 +833,7 @@ export function SubmitForm({
         <div className="border-b border-ink/10 px-5 py-5 sm:px-8">
           <div className="mb-4 flex items-center justify-between gap-4 text-sm text-ink/60">
             <span className="font-semibold text-brand">
-              Step {stepIndex} of 3
+              Step {stepIndex} of 4
             </span>
             <span>{school.instagramUsername}</span>
           </div>
@@ -1108,12 +1130,101 @@ export function SubmitForm({
                 <button
                   className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={!canSubmit}
+                  onClick={goToTier}
+                  type="button"
+                >
+                  Next: Select Tier
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              </div>
+            </section>
+          )}
+
+          {currentStep === "tier" && (
+            <section className="grid gap-5">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold tracking-tight text-ink">
+                  Choose Your Posting Speed
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-ink/60">
+                  Select when you'd like your post to go live.
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                {postingTiers.map((tier) => {
+                  const isSelected = selectedTierId === tier.id;
+
+                  return (
+                    <button
+                      className={`rounded-lg border-2 p-4 text-left transition ${
+                        isSelected
+                          ? "border-green-500 bg-green-50 shadow-soft"
+                          : "border-ink/10 bg-white hover:border-green-300"
+                      }`}
+                      disabled={isSubmitting}
+                      key={tier.id}
+                      onClick={() => {
+                        setSelectedTierId(tier.id);
+                        setSubmissionId("");
+                      }}
+                      type="button"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-bold text-ink">
+                              {tier.label}
+                            </p>
+                            {tier.badge && (
+                              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                                {tier.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-3 text-3xl font-bold text-ink">
+                            {formatTierPrice(tier.priceCents)}
+                          </p>
+                          <p className="mt-2 text-sm text-ink/60">
+                            {tier.speedLabel}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <CheckCircle2 className="mt-1 h-6 w-6 shrink-0 text-green-600" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-ink/15 bg-white px-5 py-3 font-semibold text-ink transition hover:bg-ink/5"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    setError("");
+                    setCurrentStep("review");
+                  }}
+                  type="button"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Back
+                </button>
+                <button
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!canSubmit}
                   type="submit"
                 >
                   {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
-                  Submit & Pay ({priceLabel})
+                  Continue to Payment ({formatTierPrice(selectedTier.priceCents)})
                 </button>
               </div>
+
+              <p className="text-center text-xs leading-5 text-ink/50">
+                You'll be redirected to secure checkout. The checkout is billed
+                monthly through Stripe.
+              </p>
             </section>
           )}
 

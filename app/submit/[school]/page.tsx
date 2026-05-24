@@ -2,14 +2,6 @@ import { notFound } from "next/navigation";
 import { SubmitForm } from "@/components/SubmitForm";
 import { getSchool } from "@/lib/schools";
 
-function formatMonthlyPrice() {
-  const cents = Number(process.env.POST_PRICE_CENTS ?? "299");
-  return new Intl.NumberFormat("en-US", {
-    currency: "USD",
-    style: "currency",
-  }).format(cents / 100);
-}
-
 export default async function SubmitPage({
   params,
 }: {
@@ -21,8 +13,6 @@ export default async function SubmitPage({
   if (!school) {
     notFound();
   }
-
-  const priceLabel = formatMonthlyPrice();
 
   return (
     <main className="min-h-screen bg-linen px-4 py-6 text-ink sm:py-10">
@@ -39,7 +29,7 @@ export default async function SubmitPage({
           </p>
         </header>
 
-        <SubmitForm priceLabel={priceLabel} school={school} />
+        <SubmitForm school={school} />
       </section>
     </main>
   );

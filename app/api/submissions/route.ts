@@ -4,6 +4,7 @@ import {
   normalizeInstagramHandle,
   validateSubmissionInput
 } from "@/lib/submission-validation";
+import { getDefaultPostingTier, getPostingTier } from "@/lib/posting-tiers";
 
 export async function POST(request: Request) {
   try {
@@ -15,7 +16,8 @@ export async function POST(request: Request) {
       instagramHandle: normalizeInstagramHandle(String(body.instagram_handle ?? "")),
       caption: String(body.caption ?? ""),
       imageUrls: Array.isArray(body.image_urls) ? body.image_urls.map(String) : [],
-      consent: Boolean(body.consent)
+      consent: Boolean(body.consent),
+      postingTier: String(body.posting_tier ?? "")
     };
 
     const validationError = validateSubmissionInput(input);
@@ -23,6 +25,8 @@ export async function POST(request: Request) {
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
+
+    const postingTier = getPostingTier(input.postingTier) ?? getDefaultPostingTier();
 
     const { data, error } = await createServiceSupabaseClient()
       .from("submissions")
@@ -34,7 +38,10 @@ export async function POST(request: Request) {
         caption: input.caption.trim(),
         image_urls: input.imageUrls,
         payment_status: "unpaid",
-        post_status: "unpaid"
+        post_status: "unpaid",
+        posting_tier: postingTier.id,
+        posting_speed: postingTier.speedLabel,
+        price_cents: postingTier.priceCents
       })
       .select("id")
       .single();

@@ -12,6 +12,9 @@ type SubmissionForMake = {
   caption: string;
   image_urls: string[];
   payment_status: string;
+  posting_tier: string | null;
+  posting_speed: string | null;
+  price_cents: number | null;
 };
 
 function buildMakePayload(submission: SubmissionForMake) {
@@ -32,7 +35,10 @@ function buildMakePayload(submission: SubmissionForMake) {
     files,
     full_name: submission.full_name,
     email: submission.email,
-    instagram_handle: submission.instagram_handle
+    instagram_handle: submission.instagram_handle,
+    posting_tier: submission.posting_tier,
+    posting_speed: submission.posting_speed,
+    price_cents: submission.price_cents
   };
 }
 
@@ -53,7 +59,7 @@ export async function POST(request: Request) {
   const supabase = createServiceSupabaseClient();
   const { data: submission, error } = await supabase
     .from("submissions")
-    .select("id, school, full_name, email, instagram_handle, caption, image_urls, payment_status")
+    .select("id, school, full_name, email, instagram_handle, caption, image_urls, payment_status, posting_tier, posting_speed, price_cents")
     .eq("id", submissionId)
     .single();
 
