@@ -10,6 +10,8 @@ import {
   useState,
 } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
   Camera,
   CheckCircle2,
   ChevronLeft,
@@ -39,6 +41,8 @@ type CropSettings = {
   y: number;
   zoom: number;
 };
+
+type FormStep = "about" | "photos" | "review";
 
 const defaultCrop: CropSettings = {
   x: 0,
@@ -497,7 +501,17 @@ export function SubmitForm({
   const [statusMessage, setStatusMessage] = useState("");
   const [submissionId, setSubmissionId] = useState("");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [currentStep, setCurrentStep] = useState<FormStep>("about");
   const previewsRef = useRef<Preview[]>([]);
+
+  const aboutComplete =
+    fullName.trim() &&
+    email.trim() &&
+    instagramHandle.trim() &&
+    caption.trim();
+  const photosComplete = previews.length > 0;
+  const stepIndex = currentStep === "about" ? 1 : currentStep === "photos" ? 2 : 3;
+  const progressWidth = `${(stepIndex / 3) * 100}%`;
 
   const canSubmit = useMemo(
     () =>
@@ -518,6 +532,28 @@ export function SubmitForm({
       previews.length,
     ],
   );
+
+  function goToPhotos() {
+    setError("");
+
+    if (!aboutComplete) {
+      setError("Please complete your name, email, Instagram handle, and bio.");
+      return;
+    }
+
+    setCurrentStep("photos");
+  }
+
+  function goToReview() {
+    setError("");
+
+    if (!photosComplete) {
+      setError("Please add at least one photo.");
+      return;
+    }
+
+    setCurrentStep("review");
+  }
 
   useEffect(() => {
     previewsRef.current = previews;
@@ -691,187 +727,328 @@ export function SubmitForm({
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       <form
-        className="rounded-lg bg-white p-5 shadow-soft sm:p-8"
+        className="overflow-hidden rounded-lg bg-white shadow-soft"
         onSubmit={onSubmit}
       >
-        <div className="grid gap-5">
-          <input name="school" type="hidden" value={school.slug} />
+        <input name="school" type="hidden" value={school.slug} />
 
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold text-ink">Full name</span>
-            <input
-              className="rounded-lg border border-ink/15 px-4 py-3 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-              disabled={isSubmitting}
-              onChange={(event) => {
-                setFullName(event.target.value);
-                setSubmissionId("");
-              }}
-              required
-              value={fullName}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold text-ink">Email</span>
-            <input
-              className="rounded-lg border border-ink/15 px-4 py-3 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-              disabled={isSubmitting}
-              onChange={(event) => {
-                setEmail(event.target.value);
-                setSubmissionId("");
-              }}
-              required
-              type="email"
-              value={email}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold text-ink">
-              Instagram handle
+        <div className="border-b border-ink/10 px-5 py-5 sm:px-8">
+          <div className="mb-4 flex items-center justify-between gap-4 text-sm text-ink/60">
+            <span className="font-semibold text-brand">
+              Step {stepIndex} of 3
             </span>
-            <input
-              className="rounded-lg border border-ink/15 px-4 py-3 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-              disabled={isSubmitting}
-              onBlur={() =>
-                setInstagramHandle(normalizeInstagramHandle(instagramHandle))
-              }
-              onChange={(event) => {
-                setInstagramHandle(event.target.value);
-                setSubmissionId("");
-              }}
-              placeholder="@yourhandle"
-              required
-              value={instagramHandle}
-            />
-          </label>
-
-          <label className="grid gap-2">
-            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
-              Caption (don't forget your @)
-              <span className="text-ink/50">
-                {caption.length}/{maxCaptionLength}
-              </span>
-            </span>
-            <textarea
-              className="min-h-40 resize-y rounded-lg border border-ink/15 px-4 py-3 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-              disabled={isSubmitting}
-              maxLength={maxCaptionLength}
-              onChange={(event) => {
-                setCaption(event.target.value);
-                setSubmissionId("");
-              }}
-              required
-              value={caption}
-            />
-          </label>
-
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-ink">Photos</span>
-              <span className="text-sm text-ink/55">
-                {previews.length}/{maxImages}
-              </span>
-            </div>
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-brand/40 bg-brand/5 px-4 py-8 text-center transition hover:bg-brand/10">
-              <Camera className="h-7 w-7 text-brand" />
-              <span className="text-sm font-semibold text-ink">
-                Add 1 to 10 images
-              </span>
-              <input
-                accept="image/*"
-                className="sr-only"
-                disabled={previews.length >= maxImages || isSubmitting}
-                multiple
-                onChange={onFilesSelected}
-                type="file"
-              />
-            </label>
-            <p className="text-sm leading-6 text-ink/55">
-              Photos will be cropped to a 4:5 Instagram portrait format.
-            </p>
-            {previews.length > 0 && (
-              <div className="grid gap-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {previews.map((preview, index) => (
-                    <div
-                      className={`relative aspect-[4/5] overflow-hidden rounded-lg bg-ink/5 ring-offset-2 transition ${
-                        selectedPhotoIndex === index
-                          ? "ring-2 ring-brand"
-                          : "ring-1 ring-ink/10"
-                      }`}
-                      key={preview.url}
-                    >
-                      <button
-                        className="h-full w-full"
-                        disabled={isSubmitting}
-                        onClick={() => setSelectedPhotoIndex(index)}
-                        type="button"
-                      >
-                        <CroppedPreviewImage
-                          alt={`Upload preview ${index + 1}`}
-                          preview={preview}
-                        />
-                      </button>
-                      <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-ink shadow">
-                        {index + 1}
-                      </span>
-                      <button
-                        aria-label="Remove photo"
-                        className="absolute right-2 top-2 rounded-full bg-white/95 p-1.5 text-ink shadow"
-                        disabled={isSubmitting}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          removePhoto(index);
-                        }}
-                        type="button"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {selectedPreview && (
-                  <CropAdjuster
-                    disabled={isSubmitting}
-                    onReset={() => updateCrop(selectedPhotoIndex, defaultCrop)}
-                    onUpdateCrop={(crop) => updateCrop(selectedPhotoIndex, crop)}
-                    preview={selectedPreview}
-                    selectedPhotoIndex={selectedPhotoIndex}
-                  />
-                )}
-              </div>
-            )}
+            <span>{school.instagramUsername}</span>
           </div>
-
-          <InstagramPreview
-            caption={caption}
-            className="lg:hidden"
-            instagramHandle={instagramHandle}
-            onSelectPhoto={setSelectedPhotoIndex}
-            previews={previews}
-            selectedPhotoIndex={selectedPhotoIndex}
-            school={school}
-          />
-
-          <label className="flex items-start gap-3 rounded-lg bg-linen p-4">
-            <input
-              checked={consent}
-              className="mt-1 h-5 w-5 accent-brand"
-              disabled={isSubmitting}
-              onChange={(event) => {
-                setConsent(event.target.checked);
-                setSubmissionId("");
-              }}
-              required
-              type="checkbox"
+          <div className="h-2 overflow-hidden rounded-full bg-ink/10">
+            <div
+              className="h-full rounded-full bg-brand transition-all"
+              style={{ width: progressWidth }}
             />
-            <span className="text-sm leading-6 text-ink/75">
-              I own these photos or have permission to submit them for posting
-              by ClassMate Connect.
-            </span>
-          </label>
+          </div>
+        </div>
+
+        <div className="grid gap-6 p-5 sm:p-8">
+          {currentStep === "about" && (
+            <section className="grid gap-5">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold tracking-tight text-ink">
+                  Tell Us About Yourself
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-ink/60">
+                  Add the details we need to match your payment and feature
+                  your post.
+                </p>
+              </div>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-ink">
+                  Full name *
+                </span>
+                <input
+                  className="rounded-lg border border-brand/45 px-4 py-3 text-base outline-none transition placeholder:text-ink/35 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  disabled={isSubmitting}
+                  onChange={(event) => {
+                    setFullName(event.target.value);
+                    setSubmissionId("");
+                  }}
+                  placeholder="Your full name"
+                  required
+                  value={fullName}
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-ink">
+                  Instagram handle *
+                </span>
+                <input
+                  className="rounded-lg border border-brand/45 px-4 py-3 text-base outline-none transition placeholder:text-ink/35 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  disabled={isSubmitting}
+                  onBlur={() =>
+                    setInstagramHandle(normalizeInstagramHandle(instagramHandle))
+                  }
+                  onChange={(event) => {
+                    setInstagramHandle(event.target.value);
+                    setSubmissionId("");
+                  }}
+                  placeholder="@username"
+                  required
+                  value={instagramHandle}
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-ink">Email *</span>
+                <input
+                  className="rounded-lg border border-brand/45 px-4 py-3 text-base outline-none transition placeholder:text-ink/35 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  disabled={isSubmitting}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setSubmissionId("");
+                  }}
+                  placeholder="email@example.com"
+                  required
+                  type="email"
+                  value={email}
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
+                  Bio *
+                  <span className="text-ink/50">
+                    {caption.length}/{maxCaptionLength}
+                  </span>
+                </span>
+                <textarea
+                  className="min-h-36 resize-y rounded-lg border border-brand/45 px-4 py-3 text-base outline-none transition placeholder:text-ink/35 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  disabled={isSubmitting}
+                  maxLength={maxCaptionLength}
+                  onChange={(event) => {
+                    setCaption(event.target.value);
+                    setSubmissionId("");
+                  }}
+                  placeholder="Share anything you'd like potential friends to know about you..."
+                  required
+                  value={caption}
+                />
+                <span className="text-sm leading-6 text-ink/55">
+                  This will be featured in your post to help classmates get to
+                  know you.
+                </span>
+              </label>
+
+              <button
+                className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!aboutComplete || isSubmitting}
+                onClick={goToPhotos}
+                type="button"
+              >
+                Next: Photos
+                <ArrowRight className="h-5 w-5" />
+              </button>
+            </section>
+          )}
+
+          {currentStep === "photos" && (
+            <section className="grid gap-5">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold tracking-tight text-ink">
+                  Upload Photos
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-ink/60">
+                  Upload 1-10 photos. Crop each one for Instagram.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-semibold text-ink">
+                  {previews.length}/{maxImages} photos
+                </span>
+                <span className="text-ink/55">
+                  {previews.length > 0 ? "Ready for review" : "Need 1 photo"}
+                </span>
+              </div>
+
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-brand/40 bg-brand/5 px-4 py-10 text-center transition hover:bg-brand/10">
+                <Camera className="h-8 w-8 text-brand" />
+                <span className="text-base font-semibold text-ink">
+                  Upload Photos
+                </span>
+                <span className="text-sm text-ink/55">
+                  Photos will be cropped to a 4:5 Instagram portrait format.
+                </span>
+                <input
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={previews.length >= maxImages || isSubmitting}
+                  multiple
+                  onChange={onFilesSelected}
+                  type="file"
+                />
+              </label>
+
+              {previews.length > 0 && (
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {previews.map((preview, index) => (
+                      <div
+                        className={`relative aspect-[4/5] overflow-hidden rounded-lg bg-ink/5 ring-offset-2 transition ${
+                          selectedPhotoIndex === index
+                            ? "ring-2 ring-brand"
+                            : "ring-1 ring-ink/10"
+                        }`}
+                        key={preview.url}
+                      >
+                        <button
+                          className="h-full w-full"
+                          disabled={isSubmitting}
+                          onClick={() => setSelectedPhotoIndex(index)}
+                          type="button"
+                        >
+                          <CroppedPreviewImage
+                            alt={`Upload preview ${index + 1}`}
+                            preview={preview}
+                          />
+                        </button>
+                        <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-ink shadow">
+                          {index + 1}
+                        </span>
+                        <button
+                          aria-label="Remove photo"
+                          className="absolute right-2 top-2 rounded-full bg-white/95 p-1.5 text-ink shadow"
+                          disabled={isSubmitting}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removePhoto(index);
+                          }}
+                          type="button"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedPreview && (
+                    <CropAdjuster
+                      disabled={isSubmitting}
+                      onReset={() => updateCrop(selectedPhotoIndex, defaultCrop)}
+                      onUpdateCrop={(crop) =>
+                        updateCrop(selectedPhotoIndex, crop)
+                      }
+                      preview={selectedPreview}
+                      selectedPhotoIndex={selectedPhotoIndex}
+                    />
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-ink/15 bg-white px-5 py-3 font-semibold text-ink transition hover:bg-ink/5"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    setError("");
+                    setCurrentStep("about");
+                  }}
+                  type="button"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Back
+                </button>
+                <button
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!photosComplete || isSubmitting}
+                  onClick={goToReview}
+                  type="button"
+                >
+                  Review
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              </div>
+            </section>
+          )}
+
+          {currentStep === "review" && (
+            <section className="grid gap-5">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold tracking-tight text-ink">
+                  Review & Pay
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-ink/60">
+                  Check the preview, confirm consent, then continue to secure
+                  payment.
+                </p>
+              </div>
+
+              <InstagramPreview
+                caption={caption}
+                className="lg:hidden"
+                instagramHandle={instagramHandle}
+                onSelectPhoto={setSelectedPhotoIndex}
+                previews={previews}
+                selectedPhotoIndex={selectedPhotoIndex}
+                school={school}
+              />
+
+              <div className="grid gap-2 rounded-lg bg-linen p-4 text-sm leading-6 text-ink/70">
+                <p>
+                  <span className="font-semibold text-ink">Name:</span>{" "}
+                  {fullName || "Not added"}
+                </p>
+                <p>
+                  <span className="font-semibold text-ink">Instagram:</span>{" "}
+                  {formatPreviewHandle(instagramHandle)}
+                </p>
+                <p>
+                  <span className="font-semibold text-ink">Photos:</span>{" "}
+                  {previews.length}
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-lg bg-linen p-4">
+                <input
+                  checked={consent}
+                  className="mt-1 h-5 w-5 accent-brand"
+                  disabled={isSubmitting}
+                  onChange={(event) => {
+                    setConsent(event.target.checked);
+                    setSubmissionId("");
+                  }}
+                  required
+                  type="checkbox"
+                />
+                <span className="text-sm leading-6 text-ink/75">
+                  I own these photos or have permission to submit them for
+                  posting by ClassMate Connect.
+                </span>
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-ink/15 bg-white px-5 py-3 font-semibold text-ink transition hover:bg-ink/5"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    setError("");
+                    setCurrentStep("photos");
+                  }}
+                  type="button"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Back
+                </button>
+                <button
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!canSubmit}
+                  type="submit"
+                >
+                  {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
+                  Submit & Pay ({priceLabel})
+                </button>
+              </div>
+            </section>
+          )}
 
           {error && (
             <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -890,15 +1067,6 @@ export function SubmitForm({
               Submission saved. Redirecting to checkout...
             </p>
           )}
-
-          <button
-            className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!canSubmit}
-            type="submit"
-          >
-            {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
-            Submit & Pay ({priceLabel})
-          </button>
         </div>
       </form>
 
