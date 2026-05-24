@@ -369,7 +369,7 @@ function CropAdjuster({
         </div>
       </div>
 
-      <label className="hidden gap-2 md:grid">
+      <label className="grid gap-2">
         <span className="text-xs font-semibold text-ink/70">Zoom</span>
         <input
           disabled={disabled}
@@ -385,7 +385,7 @@ function CropAdjuster({
           value={preview.crop.zoom}
         />
       </label>
-      <label className="hidden gap-2 md:grid">
+      <label className="grid gap-2">
         <span className="text-xs font-semibold text-ink/70">
           Move left / right
         </span>
@@ -402,7 +402,7 @@ function CropAdjuster({
           value={preview.crop.x}
         />
       </label>
-      <label className="hidden gap-2 md:grid">
+      <label className="grid gap-2">
         <span className="text-xs font-semibold text-ink/70">Move up / down</span>
         <input
           disabled={disabled}
