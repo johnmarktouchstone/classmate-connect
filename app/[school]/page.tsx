@@ -22,7 +22,7 @@ export default async function PublicSchoolSubmitPage({
             ClassMate Connect
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-            {school.displayName}!
+            {school.pageHeading}
           </h1>
           <p className="mt-3 text-base leading-7 text-ink/70">
             Complete this form to be featured! DM us with any questions!
