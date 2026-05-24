@@ -1,5 +1,6 @@
 export type School = {
   slug: string;
+  publicSlug: string;
   displayName: string;
   instagramUsername: string;
 };
@@ -7,26 +8,31 @@ export type School = {
 export const schools: School[] = [
   {
     slug: "acu2031",
+    publicSlug: "acu",
     displayName: "ACU Class of 2031",
     instagramUsername: "@acuclassof2031"
   },
   {
     slug: "belmont2031",
+    publicSlug: "belmont",
     displayName: "Belmont Class of 2031",
     instagramUsername: "@belmontclassof2031"
   },
   {
     slug: "pepperdine2031",
+    publicSlug: "pepperdine",
     displayName: "Pepperdine Class of 2031",
     instagramUsername: "@pepperdineclassof2031"
   },
   {
     slug: "rutgers2031",
+    publicSlug: "rutgers",
     displayName: "Rutgers Class of 2031",
     instagramUsername: "@rutgersclassof2031"
   },
   {
     slug: "washu2031",
+    publicSlug: "washu",
     displayName: "WashU Class of 2031",
     instagramUsername: "@washuclassof2031"
   }
@@ -34,4 +40,8 @@ export const schools: School[] = [
 
 export function getSchool(slug: string) {
   return schools.find((school) => school.slug === slug);
+}
+
+export function getSchoolByPublicSlug(publicSlug: string) {
+  return schools.find((school) => school.publicSlug === publicSlug);
 }

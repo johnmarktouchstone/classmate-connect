@@ -19,7 +19,7 @@ export default function Home() {
           {schools.map((school) => (
             <Link
               className="rounded-lg bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg"
-              href={`/submit/${school.slug}`}
+              href={`/${school.publicSlug}`}
               key={school.slug}
             >
               <h2 className="text-xl font-bold">{school.displayName}</h2>
