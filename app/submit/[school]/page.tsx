@@ -35,8 +35,7 @@ export default async function SubmitPage({
             {school.displayName}!
           </h1>
           <p className="mt-3 text-base leading-7 text-ink/70">
-            Your post will be reviewed and posted within 24 hours. DM us with
-            any questions!
+            Complete this form to be featured! DM us with any questions!
           </p>
         </header>
 
