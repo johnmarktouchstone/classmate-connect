@@ -4,6 +4,7 @@ import {
   ChangeEvent,
   FormEvent,
   PointerEvent,
+  ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -248,12 +249,14 @@ function InstagramPreview({
 }
 
 function CropAdjuster({
+  action,
   disabled,
   onReset,
   onUpdateCrop,
   preview,
   selectedPhotoIndex,
 }: {
+  action?: ReactNode;
   disabled: boolean;
   onReset: () => void;
   onUpdateCrop: (crop: Partial<CropSettings>) => void;
@@ -358,6 +361,8 @@ function CropAdjuster({
         </button>
       </div>
 
+      {action}
+
       <div className="mx-auto w-full max-w-56 overflow-hidden rounded-lg bg-white shadow-sm">
         <div
           className="relative aspect-[4/5] touch-none select-none overflow-hidden bg-ink/5"
@@ -421,6 +426,72 @@ function CropAdjuster({
           value={preview.crop.y}
         />
       </label>
+    </div>
+  );
+}
+
+function CropModal({
+  disabled,
+  onClose,
+  onReset,
+  onUpdateCrop,
+  preview,
+  selectedPhotoIndex,
+}: {
+  disabled: boolean;
+  onClose: () => void;
+  onReset: () => void;
+  onUpdateCrop: (crop: Partial<CropSettings>) => void;
+  preview: Preview;
+  selectedPhotoIndex: number;
+}) {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-50 grid place-items-end bg-ink/55 p-0 sm:place-items-center sm:p-6"
+      role="dialog"
+    >
+      <button
+        aria-label="Close crop editor"
+        className="absolute inset-0 h-full w-full cursor-default"
+        onClick={onClose}
+        type="button"
+      />
+      <div className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl sm:max-w-md sm:rounded-2xl">
+        <CropAdjuster
+          action={
+            <button
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
+              disabled={disabled}
+              onClick={onClose}
+              type="button"
+            >
+              Done
+            </button>
+          }
+          disabled={disabled}
+          onReset={onReset}
+          onUpdateCrop={onUpdateCrop}
+          preview={preview}
+          selectedPhotoIndex={selectedPhotoIndex}
+        />
+      </div>
     </div>
   );
 }
@@ -502,6 +573,7 @@ export function SubmitForm({
   const [submissionId, setSubmissionId] = useState("");
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [currentStep, setCurrentStep] = useState<FormStep>("about");
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const previewsRef = useRef<Preview[]>([]);
 
   const aboutComplete =
@@ -593,7 +665,8 @@ export function SubmitForm({
         url: URL.createObjectURL(file),
       })),
     ]);
-    setSelectedPhotoIndex(0);
+    setSelectedPhotoIndex(previews.length);
+    setIsCropModalOpen(true);
     event.target.value = "";
   }
 
@@ -604,6 +677,9 @@ export function SubmitForm({
     setSelectedPhotoIndex((currentIndex) =>
       Math.min(currentIndex, Math.max(0, nextPreviews.length - 1)),
     );
+    if (nextPreviews.length === 0) {
+      setIsCropModalOpen(false);
+    }
     setSubmissionId("");
   }
 
@@ -903,7 +979,10 @@ export function SubmitForm({
                         <button
                           className="h-full w-full"
                           disabled={isSubmitting}
-                          onClick={() => setSelectedPhotoIndex(index)}
+                          onClick={() => {
+                            setSelectedPhotoIndex(index);
+                            setIsCropModalOpen(true);
+                          }}
                           type="button"
                         >
                           <CroppedPreviewImage
@@ -930,17 +1009,9 @@ export function SubmitForm({
                     ))}
                   </div>
 
-                  {selectedPreview && (
-                    <CropAdjuster
-                      disabled={isSubmitting}
-                      onReset={() => updateCrop(selectedPhotoIndex, defaultCrop)}
-                      onUpdateCrop={(crop) =>
-                        updateCrop(selectedPhotoIndex, crop)
-                      }
-                      preview={selectedPreview}
-                      selectedPhotoIndex={selectedPhotoIndex}
-                    />
-                  )}
+                  <p className="text-center text-sm text-ink/55">
+                    Tap any photo to adjust its crop.
+                  </p>
                 </div>
               )}
 
@@ -1079,6 +1150,17 @@ export function SubmitForm({
         selectedPhotoIndex={selectedPhotoIndex}
         school={school}
       />
+
+      {isCropModalOpen && selectedPreview && (
+        <CropModal
+          disabled={isSubmitting}
+          onClose={() => setIsCropModalOpen(false)}
+          onReset={() => updateCrop(selectedPhotoIndex, defaultCrop)}
+          onUpdateCrop={(crop) => updateCrop(selectedPhotoIndex, crop)}
+          preview={selectedPreview}
+          selectedPhotoIndex={selectedPhotoIndex}
+        />
+      )}
     </div>
   );
 }
