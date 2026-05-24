@@ -830,10 +830,6 @@ export function SubmitForm({
                 <h2 className="text-2xl font-bold tracking-tight text-ink">
                   Tell Us About Yourself
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-ink/60">
-                  Add the details we need to match your payment and feature
-                  your post.
-                </p>
               </div>
 
               <label className="grid gap-2">
