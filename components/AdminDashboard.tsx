@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Loader2, LockKeyhole, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, LockKeyhole, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { formatTierPrice, postingTiers, type PostingTierId } from "@/lib/posting-tiers";
 import { formatStatus, type PostStatus, type Submission } from "@/lib/submissions";
 
@@ -80,6 +80,20 @@ function getTierDisplay(submission: Submission) {
   };
 }
 
+function submissionMatchesSearch(submission: Submission, searchQuery: string) {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  if (!normalizedQuery) return true;
+
+  return [
+    submission.full_name,
+    submission.email,
+    submission.instagram_handle,
+    submission.school,
+    submission.id,
+  ].some((value) => value.toLowerCase().includes(normalizedQuery));
+}
+
 export function AdminDashboard() {
   const [password, setPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -88,6 +102,7 @@ export function AdminDashboard() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [hiddenSubmissionIds, setHiddenSubmissionIds] = useState<string[]>([]);
   const [showHiddenManager, setShowHiddenManager] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [actionId, setActionId] = useState("");
   const [error, setError] = useState("");
@@ -121,8 +136,12 @@ export function AdminDashboard() {
       );
     }
 
+    nextSubmissions = nextSubmissions.filter((submission) =>
+      submissionMatchesSearch(submission, searchQuery)
+    );
+
     return nextSubmissions;
-  }, [activeTab, paidTierFilter, visibleAdminSubmissions]);
+  }, [activeTab, paidTierFilter, searchQuery, visibleAdminSubmissions]);
 
   const counts = useMemo(() => {
     return visibleAdminSubmissions.reduce<Record<string, number>>(
@@ -425,6 +444,32 @@ export function AdminDashboard() {
           ))}
         </div>
 
+        <div className="rounded-lg bg-white p-4 shadow-soft">
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold text-ink">Search submissions</span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" />
+              <input
+                className="min-h-11 w-full rounded-lg border border-ink/15 bg-white px-11 py-2 text-sm outline-none transition placeholder:text-ink/35 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search name, email, Instagram, school, or ID"
+                type="search"
+                value={searchQuery}
+              />
+              {searchQuery && (
+                <button
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-ink/45 transition hover:bg-ink/5 hover:text-ink"
+                  onClick={() => setSearchQuery("")}
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </label>
+        </div>
+
         {showHiddenManager && hiddenSubmissions.length > 0 && (
           <section className="rounded-lg border border-ink/10 bg-white p-4 shadow-soft">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -543,7 +588,9 @@ export function AdminDashboard() {
                   ? "New form entries will show up in this dashboard."
                   : visibleAdminSubmissions.length === 0
                     ? "All submissions are hidden from this dashboard view."
-                    : `No ${activeTab === "paid" ? "paid" : formatStatus(activeTab).toLowerCase()} submissions right now.`}
+                    : searchQuery.trim()
+                      ? "No submissions match your search in this tab."
+                      : `No ${activeTab === "paid" ? "paid" : formatStatus(activeTab).toLowerCase()} submissions right now.`}
               </p>
             </div>
           </div>
