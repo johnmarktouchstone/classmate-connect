@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     const submissionId = String(body.submission_id ?? "");
     const status = String(body.status ?? "");
     const errorMessage = body.error_message ? String(body.error_message) : null;
+    const instagramPostId = body.instagram_post_id ? String(body.instagram_post_id) : null;
 
     if (!submissionId) {
       return NextResponse.json({ error: "submission_id is required." }, { status: 400 });
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
       post_status: MakeStatus;
       posted_at?: string;
       error_message?: string | null;
+      instagram_post_id?: string | null;
     } = {
       post_status: status
     };
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
     if (status === "posted") {
       updateValues.posted_at = new Date().toISOString();
       updateValues.error_message = null;
+      updateValues.instagram_post_id = instagramPostId;
     }
 
     if (status === "failed") {
@@ -45,7 +48,7 @@ export async function POST(request: Request) {
       .from("submissions")
       .update(updateValues)
       .eq("id", submissionId)
-      .select("id, post_status, posted_at, error_message")
+      .select("id, post_status, posted_at, error_message, instagram_post_id")
       .single();
 
     if (error || !data) {

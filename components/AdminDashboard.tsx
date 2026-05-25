@@ -454,6 +454,13 @@ export function AdminDashboard() {
                       </p>
                     )}
 
+                    {submission.post_status === "posted" && submission.instagram_post_id && (
+                      <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800">
+                        <span className="font-semibold">Instagram post ID:</span>{" "}
+                        {submission.instagram_post_id}
+                      </p>
+                    )}
+
                     <div className="flex flex-wrap gap-2 text-xs text-ink/50">
                       <span>ID: {submission.id}</span>
                       <span>Created: {new Date(submission.created_at).toLocaleString()}</span>
