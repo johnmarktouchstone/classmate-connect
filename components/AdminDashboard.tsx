@@ -54,6 +54,11 @@ export function AdminDashboard() {
   const [actionId, setActionId] = useState("");
   const [error, setError] = useState("");
 
+  const visibleSubmissions = useMemo(() => {
+    if (filter === "all") return submissions;
+    return submissions.filter((submission) => submission.post_status === filter);
+  }, [filter, submissions]);
+
   const counts = useMemo(() => {
     return submissions.reduce<Record<string, number>>(
       (nextCounts, submission) => {
@@ -70,12 +75,12 @@ export function AdminDashboard() {
     [submissions]
   );
 
-  async function loadSubmissions(nextFilter = filter, nextPassword = password) {
+  async function loadSubmissions(nextPassword = password) {
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await fetch(`/api/admin/submissions?status=${nextFilter}`, {
+      const response = await fetch("/api/admin/submissions?status=all", {
         headers: { "x-admin-password": nextPassword }
       });
       const result = (await response.json()) as { submissions?: Submission[]; error?: string };
@@ -167,19 +172,18 @@ export function AdminDashboard() {
 
   function onLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void loadSubmissions(filter, password);
+    void loadSubmissions(password);
   }
 
   function onFilterChange(nextFilter: Filter) {
     setFilter(nextFilter);
-    if (isUnlocked) void loadSubmissions(nextFilter);
   }
 
   useEffect(() => {
     const savedPassword = sessionStorage.getItem(adminPasswordStorageKey);
     if (savedPassword) {
       setPassword(savedPassword);
-      void loadSubmissions(filter, savedPassword);
+      void loadSubmissions(savedPassword);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -188,7 +192,7 @@ export function AdminDashboard() {
     if (!isUnlocked) return;
 
     const intervalId = window.setInterval(() => {
-      void loadSubmissions(filter);
+      void loadSubmissions();
     }, 30000);
 
     return () => window.clearInterval(intervalId);
@@ -311,16 +315,20 @@ export function AdminDashboard() {
           <div className="grid min-h-80 place-items-center rounded-lg bg-white shadow-soft">
             <Loader2 className="h-8 w-8 animate-spin text-brand" />
           </div>
-        ) : submissions.length === 0 ? (
+        ) : visibleSubmissions.length === 0 ? (
           <div className="grid min-h-80 place-items-center rounded-lg bg-white p-8 text-center shadow-soft">
             <div>
               <h2 className="text-lg font-bold">No submissions here yet</h2>
-              <p className="mt-1 text-sm text-ink/60">New form entries will show up in this dashboard.</p>
+              <p className="mt-1 text-sm text-ink/60">
+                {submissions.length === 0
+                  ? "New form entries will show up in this dashboard."
+                  : `No ${filter === "all" ? "" : formatStatus(filter).toLowerCase()} submissions right now.`}
+              </p>
             </div>
           </div>
         ) : (
           <div className="grid gap-4">
-            {submissions.map((submission) => (
+            {visibleSubmissions.map((submission) => (
               <article className="rounded-lg bg-white p-4 shadow-soft sm:p-5" key={submission.id}>
                 <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
                   <div className="grid gap-4">
