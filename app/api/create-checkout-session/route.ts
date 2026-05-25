@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendSubmissionToMake } from "@/lib/make-submissions";
+import { after } from "next/server";
+import { sendInstantSubmissionToMakeAfterDelay } from "@/lib/make-submissions";
 import { getDefaultPostingTier, getPostingTier } from "@/lib/posting-tiers";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { getPostPriceCents, getStripe } from "@/lib/stripe";
+
+export const maxDuration = 60;
 
 function getCheckoutProductName(school: string) {
   const classYear = school.match(/20\d{2}/)?.[0] ?? "2031";
@@ -59,11 +62,13 @@ export async function POST(request: NextRequest) {
       }
 
       if ((submission.posting_tier ?? fallbackTier.id) === "instant") {
-        try {
-          await sendSubmissionToMake(supabase, submission.id);
-        } catch {
-          // The submission is marked failed by the helper and will show in admin.
-        }
+        after(async () => {
+          try {
+            await sendInstantSubmissionToMakeAfterDelay(submission.id);
+          } catch {
+            // The submission is marked failed by the helper and will show in admin.
+          }
+        });
       }
 
       return NextResponse.json({ url: `${siteUrl}/success?free=1` });

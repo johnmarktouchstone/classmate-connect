@@ -56,6 +56,19 @@ export function buildMakePayload(submission: SubmissionForMake) {
   };
 }
 
+export const instantSendDelayMs = 20_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+export async function sendInstantSubmissionToMakeAfterDelay(submissionId: string) {
+  await sleep(instantSendDelayMs);
+  return sendSubmissionToMake(createServiceSupabaseClient(), submissionId);
+}
+
 export async function sendSubmissionToMake(
   supabase: ServiceSupabaseClient,
   submissionId: string,

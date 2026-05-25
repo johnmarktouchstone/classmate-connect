@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import Stripe from "stripe";
 import { requireEnv } from "@/lib/env";
-import { sendSubmissionToMake } from "@/lib/make-submissions";
+import { sendInstantSubmissionToMakeAfterDelay } from "@/lib/make-submissions";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -50,12 +52,13 @@ export async function POST(request: Request) {
     }
 
     if (session.metadata?.posting_tier === "instant") {
-      try {
-        await sendSubmissionToMake(supabase, submissionId);
-      } catch {
-        // The helper marks the submission failed with an error message.
-        // Stripe should still receive 200 so it does not keep retrying the payment webhook.
-      }
+      after(async () => {
+        try {
+          await sendInstantSubmissionToMakeAfterDelay(submissionId);
+        } catch {
+          // The helper marks the submission failed with an error message.
+        }
+      });
     }
   }
 
