@@ -583,6 +583,7 @@ export function SubmitForm({ school }: { school: School }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [submissionId, setSubmissionId] = useState("");
+  const [submittedImageUrls, setSubmittedImageUrls] = useState<string[]>([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [draggingPhotoIndex, setDraggingPhotoIndex] = useState<number | null>(null);
   const [dragOverPhotoIndex, setDragOverPhotoIndex] = useState<number | null>(null);
@@ -673,7 +674,40 @@ export function SubmitForm({ school }: { school: School }) {
     setCurrentStep("review");
   }
 
-  function goToTier() {
+  async function saveSubmissionDraft() {
+    const imageUrls = submittedImageUrls.length > 0 ? submittedImageUrls : await uploadImages();
+    setSubmittedImageUrls(imageUrls);
+    setStatusMessage("Saving your post details...");
+
+    const response = await fetch("/api/submissions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        submission_id: submissionId || undefined,
+        school: school.slug,
+        full_name: fullName,
+        email,
+        instagram_handle: normalizeInstagramHandle(instagramHandle),
+        caption,
+        image_urls: imageUrls,
+        consent,
+      }),
+    });
+
+    const result = (await response.json()) as {
+      submission_id?: string;
+      error?: string;
+    };
+
+    if (!response.ok || !result.submission_id) {
+      throw new Error(result.error || "Unable to save submission.");
+    }
+
+    setSubmissionId(result.submission_id);
+    return result.submission_id;
+  }
+
+  async function goToTier() {
     setError("");
 
     if (!canSubmit) {
@@ -681,7 +715,18 @@ export function SubmitForm({ school }: { school: School }) {
       return;
     }
 
-    setCurrentStep("tier");
+    setIsSubmitting(true);
+
+    try {
+      await saveSubmissionDraft();
+      setStatusMessage("");
+      setCurrentStep("tier");
+    } catch (draftError) {
+      setError(draftError instanceof Error ? draftError.message : "Unable to save submission.");
+      setStatusMessage("");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function applyEnteredPromoCode() {
@@ -705,7 +750,6 @@ export function SubmitForm({ school }: { school: School }) {
 
     setAppliedPromoCode(promo.code);
     setPromoMessage(`${promo.code} applied: ${promo.description}.`);
-    setSubmissionId("");
   }
 
   function removePromoCode() {
@@ -713,7 +757,6 @@ export function SubmitForm({ school }: { school: School }) {
     setPromoCodeInput("");
     setPromoMessage("");
     setPromoError("");
-    setSubmissionId("");
   }
 
   useEffect(() => {
@@ -728,9 +771,14 @@ export function SubmitForm({ school }: { school: School }) {
     };
   }, []);
 
+  function resetSavedSubmission() {
+    setSubmissionId("");
+    setSubmittedImageUrls([]);
+  }
+
   function onFilesSelected(event: ChangeEvent<HTMLInputElement>) {
     setError("");
-    setSubmissionId("");
+    resetSavedSubmission();
 
     const files = Array.from(event.target.files ?? []);
     const nextFiles = files.slice(0, maxImages - previews.length);
@@ -769,7 +817,7 @@ export function SubmitForm({ school }: { school: School }) {
     if (nextPreviews.length === 0) {
       setIsCropModalOpen(false);
     }
-    setSubmissionId("");
+    resetSavedSubmission();
   }
 
   function movePhoto(fromIndex: number, toIndex: number) {
@@ -788,7 +836,7 @@ export function SubmitForm({ school }: { school: School }) {
       if (fromIndex > currentIndex && toIndex <= currentIndex) return currentIndex + 1;
       return currentIndex;
     });
-    setSubmissionId("");
+    resetSavedSubmission();
   }
 
   function getPhotoIndexAtPoint(clientX: number, clientY: number) {
@@ -849,7 +897,7 @@ export function SubmitForm({ school }: { school: School }) {
           : preview,
       ),
     );
-    setSubmissionId("");
+    resetSavedSubmission();
   }
 
   async function uploadImages() {
@@ -890,7 +938,6 @@ export function SubmitForm({ school }: { school: School }) {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setSubmissionId("");
 
     if (!canSubmit) {
       setError(
@@ -902,13 +949,15 @@ export function SubmitForm({ school }: { school: School }) {
     setIsSubmitting(true);
 
     try {
-      const imageUrls = await uploadImages();
-      setStatusMessage("Saving submission...");
+      const imageUrls = submittedImageUrls.length > 0 ? submittedImageUrls : await uploadImages();
+      setSubmittedImageUrls(imageUrls);
+      setStatusMessage("Saving posting speed...");
 
       const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          submission_id: submissionId || undefined,
           school: school.slug,
           full_name: fullName,
           email,
@@ -1001,7 +1050,7 @@ export function SubmitForm({ school }: { school: School }) {
                   disabled={isSubmitting}
                   onChange={(event) => {
                     setFullName(event.target.value);
-                    setSubmissionId("");
+                    resetSavedSubmission();
                   }}
                   placeholder="Your full name"
                   required
@@ -1021,7 +1070,7 @@ export function SubmitForm({ school }: { school: School }) {
                   }
                   onChange={(event) => {
                     setInstagramHandle(event.target.value);
-                    setSubmissionId("");
+                    resetSavedSubmission();
                   }}
                   placeholder="@username"
                   required
@@ -1036,7 +1085,7 @@ export function SubmitForm({ school }: { school: School }) {
                   disabled={isSubmitting}
                   onChange={(event) => {
                     setEmail(event.target.value);
-                    setSubmissionId("");
+                    resetSavedSubmission();
                   }}
                   placeholder="email@example.com"
                   required
@@ -1058,7 +1107,7 @@ export function SubmitForm({ school }: { school: School }) {
                   maxLength={maxCaptionLength}
                   onChange={(event) => {
                     setCaption(event.target.value);
-                    setSubmissionId("");
+                    resetSavedSubmission();
                   }}
                   placeholder="Share anything you'd like potential friends to know about you..."
                   required
@@ -1264,7 +1313,7 @@ export function SubmitForm({ school }: { school: School }) {
                   disabled={isSubmitting}
                   onChange={(event) => {
                     setConsent(event.target.checked);
-                    setSubmissionId("");
+                    resetSavedSubmission();
                   }}
                   required
                   type="checkbox"
@@ -1381,7 +1430,6 @@ export function SubmitForm({ school }: { school: School }) {
                               : "",
                           );
                         }
-                        setSubmissionId("");
                       }}
                       type="button"
                     >

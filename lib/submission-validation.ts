@@ -20,9 +20,14 @@ export function validateSubmissionInput(input: {
   consent: boolean;
   postingTier: string;
   promoCode?: string;
-}) {
+}, options: { requirePostingTier?: boolean } = {}) {
+  const requirePostingTier = options.requirePostingTier ?? true;
+
   if (!getSchool(input.school)) return "Unknown school page.";
-  if (!getPostingTier(input.postingTier)) return "Unknown posting speed.";
+  if (requirePostingTier && !getPostingTier(input.postingTier)) return "Unknown posting speed.";
+  if (!requirePostingTier && input.postingTier && !getPostingTier(input.postingTier)) {
+    return "Unknown posting speed.";
+  }
   if (normalizePromoCode(input.promoCode) && !isValidPromoCode(input.promoCode)) {
     return "Promo code is invalid.";
   }
