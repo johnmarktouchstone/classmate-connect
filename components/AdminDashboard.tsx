@@ -103,6 +103,7 @@ export function AdminDashboard() {
   const [hiddenSubmissionIds, setHiddenSubmissionIds] = useState<string[]>([]);
   const [showHiddenManager, setShowHiddenManager] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [hiddenSearchQuery, setHiddenSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [actionId, setActionId] = useState("");
   const [error, setError] = useState("");
@@ -114,8 +115,10 @@ export function AdminDashboard() {
 
   const hiddenSubmissions = useMemo(() => {
     const hiddenIds = new Set(hiddenSubmissionIds);
-    return submissions.filter((submission) => hiddenIds.has(submission.id));
-  }, [hiddenSubmissionIds, submissions]);
+    return submissions
+      .filter((submission) => hiddenIds.has(submission.id))
+      .filter((submission) => submissionMatchesSearch(submission, hiddenSearchQuery));
+  }, [hiddenSearchQuery, hiddenSubmissionIds, submissions]);
 
   const visibleSubmissions = useMemo(() => {
     let nextSubmissions = visibleAdminSubmissions.filter((submission) => {
@@ -488,7 +491,33 @@ export function AdminDashboard() {
               </button>
             </div>
 
+            <div className="relative mt-4">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" />
+              <input
+                className="min-h-11 w-full rounded-lg border border-ink/15 bg-white px-11 py-2 text-sm outline-none transition placeholder:text-ink/35 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                onChange={(event) => setHiddenSearchQuery(event.target.value)}
+                placeholder="Search hidden by name, email, Instagram, school, or ID"
+                type="search"
+                value={hiddenSearchQuery}
+              />
+              {hiddenSearchQuery && (
+                <button
+                  aria-label="Clear hidden search"
+                  className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-ink/45 transition hover:bg-ink/5 hover:text-ink"
+                  onClick={() => setHiddenSearchQuery("")}
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
             <div className="mt-4 grid gap-2">
+              {hiddenSubmissions.length === 0 && (
+                <p className="rounded-lg bg-linen px-4 py-3 text-sm text-ink/60">
+                  No hidden submissions match that search.
+                </p>
+              )}
               {hiddenSubmissions.map((submission) => (
                 <div
                   className="flex flex-col gap-3 rounded-lg bg-linen p-3 sm:flex-row sm:items-center sm:justify-between"
