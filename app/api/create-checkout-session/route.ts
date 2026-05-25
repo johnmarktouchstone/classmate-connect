@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     const configuredTier = getPostingTier(submission.posting_tier);
     const fallbackTier = getDefaultPostingTier();
     const tierLabel = configuredTier?.label ?? fallbackTier.label;
+    const tierId = submission.posting_tier ?? fallbackTier.id;
     const postingSpeed = submission.posting_speed ?? configuredTier?.speedLabel ?? fallbackTier.speedLabel;
     const priceCents = submission.price_cents ?? configuredTier?.priceCents ?? getPostPriceCents();
     const originalPriceCents = submission.original_price_cents ?? configuredTier?.priceCents ?? priceCents;
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
 
-      if ((submission.posting_tier ?? fallbackTier.id) === "instant") {
+      if (tierId === "instant") {
         after(async () => {
           try {
             await sendInstantSubmissionToMakeAfterDelay(submission.id);
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({ url: `${siteUrl}/success?free=1` });
+      return NextResponse.json({ url: `${siteUrl}/success?free=1&tier=${tierId}` });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
       ],
       metadata: {
         posting_speed: postingSpeed,
-        posting_tier: submission.posting_tier ?? fallbackTier.id,
+        posting_tier: tierId,
         promo_code: promoCode,
         discount_cents: String(discountCents),
         original_price_cents: String(originalPriceCents),
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
       subscription_data: {
         metadata: {
           posting_speed: postingSpeed,
-          posting_tier: submission.posting_tier ?? fallbackTier.id,
+          posting_tier: tierId,
           promo_code: promoCode,
           discount_cents: String(discountCents),
           original_price_cents: String(originalPriceCents),
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
           submission_id: submission.id
         }
       },
-      success_url: `${siteUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${siteUrl}/success?session_id={CHECKOUT_SESSION_ID}&tier=${tierId}`,
       cancel_url: `${siteUrl}/cancel`
     });
 
