@@ -42,7 +42,8 @@ export function getDefaultPostingTier() {
 }
 
 export function formatTierPrice(cents: number | null | undefined) {
-  if (!cents) return "Legacy price";
+  if (cents === 0) return "Free";
+  if (cents == null) return "Legacy price";
 
   return new Intl.NumberFormat("en-US", {
     currency: "USD",
