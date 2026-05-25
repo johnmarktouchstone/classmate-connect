@@ -54,6 +54,7 @@ function sortSubmissions(submissions: Submission[]) {
 function getApproveLabel(submission: Submission) {
   if (submission.post_status === "sent_to_make") return "Sent to Make";
   if (submission.post_status === "posted") return "Posted";
+  if (submission.post_status === "failed") return "Retry failed";
   return "Approve";
 }
 
