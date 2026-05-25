@@ -13,8 +13,8 @@ export function formatCaptionForInstagram(caption: string, instagramHandle: stri
   const handle = formatInstagramHandle(instagramHandle);
 
   if (!trimmedCaption) {
-    return `Your caption will appear here.\n${handle}`;
+    return `Your caption will appear here.\n\n${handle}`;
   }
 
-  return `${trimmedCaption}\n${handle}`;
+  return `${trimmedCaption}\n\n${handle}`;
 }

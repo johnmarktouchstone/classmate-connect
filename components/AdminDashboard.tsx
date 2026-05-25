@@ -18,6 +18,7 @@ const dashboardTabs: { id: DashboardTab; label: string }[] = [
 ];
 
 const adminPasswordStorageKey = "classmate_admin_password";
+const hiddenSubmissionsStorageKey = "classmate_hidden_submission_ids";
 
 const statusStyles: Record<PostStatus, string> = {
   unpaid: "bg-slate-100 text-slate-700",
@@ -79,12 +80,18 @@ export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>("paid");
   const [paidTierFilter, setPaidTierFilter] = useState<PaidTierFilter>("all");
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [hiddenSubmissionIds, setHiddenSubmissionIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [actionId, setActionId] = useState("");
   const [error, setError] = useState("");
 
+  const visibleAdminSubmissions = useMemo(() => {
+    const hiddenIds = new Set(hiddenSubmissionIds);
+    return submissions.filter((submission) => !hiddenIds.has(submission.id));
+  }, [hiddenSubmissionIds, submissions]);
+
   const visibleSubmissions = useMemo(() => {
-    let nextSubmissions = submissions.filter((submission) => {
+    let nextSubmissions = visibleAdminSubmissions.filter((submission) => {
       if (activeTab === "paid") {
         return submission.payment_status === "paid" && submission.post_status === "needs_review";
       }
@@ -103,10 +110,10 @@ export function AdminDashboard() {
     }
 
     return nextSubmissions;
-  }, [activeTab, paidTierFilter, submissions]);
+  }, [activeTab, paidTierFilter, visibleAdminSubmissions]);
 
   const counts = useMemo(() => {
-    return submissions.reduce<Record<string, number>>(
+    return visibleAdminSubmissions.reduce<Record<string, number>>(
       (nextCounts, submission) => {
         if (submission.payment_status === "unpaid" || submission.post_status === "unpaid") {
           nextCounts.unpaid += 1;
@@ -131,10 +138,10 @@ export function AdminDashboard() {
         unpaid: 0,
       }
     );
-  }, [submissions]);
+  }, [visibleAdminSubmissions]);
 
   const paidTierCounts = useMemo(() => {
-    return submissions.reduce<Record<string, number>>(
+    return visibleAdminSubmissions.reduce<Record<string, number>>(
       (nextCounts, submission) => {
         if (submission.payment_status !== "paid" || submission.post_status !== "needs_review") {
           return nextCounts;
@@ -149,11 +156,11 @@ export function AdminDashboard() {
       },
       { all: 0 }
     );
-  }, [submissions]);
+  }, [visibleAdminSubmissions]);
 
   const failedSubmissions = useMemo(
-    () => submissions.filter((submission) => submission.post_status === "failed"),
-    [submissions]
+    () => visibleAdminSubmissions.filter((submission) => submission.post_status === "failed"),
+    [visibleAdminSubmissions]
   );
 
   async function loadSubmissions(nextPassword = password) {
@@ -264,6 +271,19 @@ export function AdminDashboard() {
     }
   }
 
+  function hideSubmission(submissionId: string) {
+    setHiddenSubmissionIds((currentIds) => {
+      const nextIds = Array.from(new Set([...currentIds, submissionId]));
+      localStorage.setItem(hiddenSubmissionsStorageKey, JSON.stringify(nextIds));
+      return nextIds;
+    });
+  }
+
+  function showHiddenSubmissions() {
+    setHiddenSubmissionIds([]);
+    localStorage.removeItem(hiddenSubmissionsStorageKey);
+  }
+
   useEffect(() => {
     const savedPassword = sessionStorage.getItem(adminPasswordStorageKey);
     if (savedPassword) {
@@ -271,6 +291,23 @@ export function AdminDashboard() {
       void loadSubmissions(savedPassword);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const savedHiddenIds = localStorage.getItem(hiddenSubmissionsStorageKey);
+
+    if (!savedHiddenIds) return;
+
+    try {
+      const parsedHiddenIds = JSON.parse(savedHiddenIds);
+      if (Array.isArray(parsedHiddenIds)) {
+        setHiddenSubmissionIds(
+          parsedHiddenIds.filter((submissionId) => typeof submissionId === "string")
+        );
+      }
+    } catch {
+      localStorage.removeItem(hiddenSubmissionsStorageKey);
+    }
   }, []);
 
   if (!isUnlocked) {
@@ -328,15 +365,26 @@ export function AdminDashboard() {
               <p className="text-sm text-ink/60">Review student posts before the next workflow step.</p>
             </div>
           </div>
-          <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ink/15 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-ink/5 disabled:opacity-60"
-            disabled={isLoading}
-            onClick={() => loadSubmissions()}
-            type="button"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {hiddenSubmissionIds.length > 0 && (
+              <button
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ink/15 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-ink/5"
+                onClick={showHiddenSubmissions}
+                type="button"
+              >
+                Show hidden ({hiddenSubmissionIds.length})
+              </button>
+            )}
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ink/15 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-ink/5 disabled:opacity-60"
+              disabled={isLoading}
+              onClick={() => loadSubmissions()}
+              type="button"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
         </header>
 
         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -426,18 +474,29 @@ export function AdminDashboard() {
               <p className="mt-1 text-sm text-ink/60">
                 {submissions.length === 0
                   ? "New form entries will show up in this dashboard."
-                  : `No ${activeTab === "paid" ? "paid" : formatStatus(activeTab).toLowerCase()} submissions right now.`}
+                  : visibleAdminSubmissions.length === 0
+                    ? "All submissions are hidden from this dashboard view."
+                    : `No ${activeTab === "paid" ? "paid" : formatStatus(activeTab).toLowerCase()} submissions right now.`}
               </p>
             </div>
           </div>
         ) : (
           <div className="grid gap-4">
             {visibleSubmissions.map((submission) => (
-              <article className="rounded-lg bg-white p-4 shadow-soft sm:p-5" key={submission.id}>
+              <article className="relative rounded-lg bg-white p-4 shadow-soft sm:p-5" key={submission.id}>
+                <button
+                  aria-label={`Hide ${submission.full_name}'s submission from dashboard`}
+                  className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full border border-ink/10 bg-white text-ink/45 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => hideSubmission(submission.id)}
+                  title="Hide from dashboard"
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
                 <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
                   <div className="grid gap-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
+                      <div className="pr-10">
                         <p className="text-xs font-semibold uppercase tracking-wide text-brand">
                           {submission.school}
                         </p>

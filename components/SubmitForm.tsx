@@ -235,7 +235,7 @@ function InstagramPreview({
             <Send className="h-5 w-5" />
           </div>
 
-          <p className="break-words text-sm leading-6 text-ink">
+          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-ink">
             <span className={caption.trim() ? "" : "text-ink/50"}>
               {captionText}
             </span>
