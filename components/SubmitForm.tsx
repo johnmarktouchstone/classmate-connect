@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import type { School } from "@/lib/schools";
+import { formatCaptionForInstagram, formatInstagramHandle } from "@/lib/caption";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import {
   maxCaptionLength,
@@ -73,16 +74,6 @@ function getDistance(
   secondPoint: { x: number; y: number },
 ) {
   return Math.hypot(firstPoint.x - secondPoint.x, firstPoint.y - secondPoint.y);
-}
-
-function formatPreviewHandle(handle: string) {
-  const trimmedHandle = handle.trim();
-
-  if (!trimmedHandle) {
-    return "@yourhandle";
-  }
-
-  return trimmedHandle.startsWith("@") ? trimmedHandle : `@${trimmedHandle}`;
 }
 
 function CroppedPreviewImage({
@@ -161,9 +152,8 @@ function InstagramPreview({
   selectedPhotoIndex: number;
   school: School;
 }) {
-  const previewHandle = formatPreviewHandle(instagramHandle);
   const selectedPreview = previews[selectedPhotoIndex] ?? previews[0];
-  const captionText = caption.trim() || "Your caption will appear here.";
+  const captionText = formatCaptionForInstagram(caption, instagramHandle);
   const hasMultiplePhotos = previews.length > 1;
 
   function showPreviousPhoto() {
@@ -1097,7 +1087,7 @@ export function SubmitForm({ school }: { school: School }) {
                 </p>
                 <p>
                   <span className="font-semibold text-ink">Instagram:</span>{" "}
-                  {formatPreviewHandle(instagramHandle)}
+                  {formatInstagramHandle(instagramHandle)}
                 </p>
                 <p>
                   <span className="font-semibold text-ink">Photos:</span>{" "}

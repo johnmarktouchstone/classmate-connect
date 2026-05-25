@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertAdminRequest } from "@/lib/admin-auth";
+import { formatCaptionForInstagram } from "@/lib/caption";
 import { requireEnv } from "@/lib/env";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 
@@ -28,7 +29,8 @@ function buildMakePayload(submission: SubmissionForMake) {
   return {
     submission_id: submission.id,
     school: submission.school,
-    caption: submission.caption,
+    caption: formatCaptionForInstagram(submission.caption, submission.instagram_handle),
+    original_caption: submission.caption,
     image_urls: submission.image_urls,
     image_count: submission.image_urls.length,
     first_image_url: submission.image_urls[0] ?? null,
