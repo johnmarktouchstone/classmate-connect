@@ -51,6 +51,17 @@ function sortSubmissions(submissions: Submission[]) {
   });
 }
 
+function sortPostedSubmissions(submissions: Submission[]) {
+  return [...submissions].sort((firstSubmission, secondSubmission) => {
+    const firstPostedAt =
+      firstSubmission.posted_at ?? firstSubmission.updated_at ?? firstSubmission.created_at;
+    const secondPostedAt =
+      secondSubmission.posted_at ?? secondSubmission.updated_at ?? secondSubmission.created_at;
+
+    return new Date(secondPostedAt).getTime() - new Date(firstPostedAt).getTime();
+  });
+}
+
 function getApproveLabel(submission: Submission) {
   if (submission.post_status === "sent_to_make") return "Sent to Make";
   if (submission.post_status === "posted") return "Posted";
@@ -204,6 +215,10 @@ export function AdminDashboard() {
     nextSubmissions = nextSubmissions.filter((submission) =>
       submissionMatchesSearch(submission, searchQuery)
     );
+
+    if (activeTab === "posted") {
+      return sortPostedSubmissions(nextSubmissions);
+    }
 
     return nextSubmissions;
   }, [activeTab, paidTierFilter, searchQuery, visibleAdminSubmissions]);
