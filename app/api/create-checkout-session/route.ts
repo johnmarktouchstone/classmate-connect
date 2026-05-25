@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceSupabaseClient();
     const { data: submission, error } = await supabase
       .from("submissions")
-      .select("id, school, email, full_name, payment_status, posting_tier, posting_speed, price_cents")
+      .select("id, school, email, full_name, payment_status, posting_tier, posting_speed, price_cents, original_price_cents, discount_cents, promo_code")
       .eq("id", submissionId)
       .single();
 
@@ -39,6 +39,26 @@ export async function POST(request: NextRequest) {
     const tierLabel = configuredTier?.label ?? fallbackTier.label;
     const postingSpeed = submission.posting_speed ?? configuredTier?.speedLabel ?? fallbackTier.speedLabel;
     const priceCents = submission.price_cents ?? configuredTier?.priceCents ?? getPostPriceCents();
+    const originalPriceCents = submission.original_price_cents ?? configuredTier?.priceCents ?? priceCents;
+    const discountCents = submission.discount_cents ?? 0;
+    const promoCode = submission.promo_code ?? "";
+
+    if (priceCents <= 0) {
+      const { error: updateError } = await supabase
+        .from("submissions")
+        .update({
+          payment_status: "paid",
+          post_status: "needs_review",
+          stripe_session_id: null
+        })
+        .eq("id", submission.id);
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ url: `${siteUrl}/success?free=1` });
+    }
 
     const session = await stripe.checkout.sessions.create({
       customer_email: submission.email,
@@ -61,6 +81,9 @@ export async function POST(request: NextRequest) {
       metadata: {
         posting_speed: postingSpeed,
         posting_tier: submission.posting_tier ?? fallbackTier.id,
+        promo_code: promoCode,
+        discount_cents: String(discountCents),
+        original_price_cents: String(originalPriceCents),
         price_cents: String(priceCents),
         submission_id: submission.id
       },
@@ -69,6 +92,9 @@ export async function POST(request: NextRequest) {
         metadata: {
           posting_speed: postingSpeed,
           posting_tier: submission.posting_tier ?? fallbackTier.id,
+          promo_code: promoCode,
+          discount_cents: String(discountCents),
+          original_price_cents: String(originalPriceCents),
           price_cents: String(priceCents),
           submission_id: submission.id
         }
@@ -76,6 +102,11 @@ export async function POST(request: NextRequest) {
       success_url: `${siteUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/cancel`
     });
+
+    await supabase
+      .from("submissions")
+      .update({ stripe_session_id: session.id })
+      .eq("id", submission.id);
 
     return NextResponse.json({ url: session.url });
   } catch (error) {

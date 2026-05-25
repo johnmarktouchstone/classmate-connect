@@ -1,5 +1,6 @@
 import { getSchool } from "@/lib/schools";
 import { getPostingTier } from "@/lib/posting-tiers";
+import { isValidPromoCode, normalizePromoCode } from "@/lib/promo-codes";
 
 export const maxCaptionLength = 2200;
 export const maxImages = 10;
@@ -18,9 +19,13 @@ export function validateSubmissionInput(input: {
   imageUrls: string[];
   consent: boolean;
   postingTier: string;
+  promoCode?: string;
 }) {
   if (!getSchool(input.school)) return "Unknown school page.";
   if (!getPostingTier(input.postingTier)) return "Unknown posting speed.";
+  if (normalizePromoCode(input.promoCode) && !isValidPromoCode(input.promoCode)) {
+    return "Promo code is invalid.";
+  }
   if (!input.fullName.trim()) return "Full name is required.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
     return "A valid email is required.";

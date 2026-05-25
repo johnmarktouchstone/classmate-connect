@@ -5,6 +5,7 @@ import {
   validateSubmissionInput
 } from "@/lib/submission-validation";
 import { getDefaultPostingTier, getPostingTier } from "@/lib/posting-tiers";
+import { applyPromoCode, normalizePromoCode } from "@/lib/promo-codes";
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
       caption: String(body.caption ?? ""),
       imageUrls: Array.isArray(body.image_urls) ? body.image_urls.map(String) : [],
       consent: Boolean(body.consent),
-      postingTier: String(body.posting_tier ?? "")
+      postingTier: String(body.posting_tier ?? ""),
+      promoCode: normalizePromoCode(String(body.promo_code ?? ""))
     };
 
     const validationError = validateSubmissionInput(input);
@@ -27,6 +29,13 @@ export async function POST(request: Request) {
     }
 
     const postingTier = getPostingTier(input.postingTier) ?? getDefaultPostingTier();
+    const promo = input.promoCode ? applyPromoCode(postingTier.priceCents, input.promoCode) : null;
+
+    if (input.promoCode && !promo) {
+      return NextResponse.json({ error: "Promo code is invalid." }, { status: 400 });
+    }
+
+    const finalPriceCents = promo?.finalPriceCents ?? postingTier.priceCents;
 
     const { data, error } = await createServiceSupabaseClient()
       .from("submissions")
@@ -41,7 +50,10 @@ export async function POST(request: Request) {
         post_status: "unpaid",
         posting_tier: postingTier.id,
         posting_speed: postingTier.speedLabel,
-        price_cents: postingTier.priceCents
+        price_cents: finalPriceCents,
+        original_price_cents: postingTier.priceCents,
+        discount_cents: promo?.discountCents ?? 0,
+        promo_code: promo?.code ?? null
       })
       .select("id")
       .single();

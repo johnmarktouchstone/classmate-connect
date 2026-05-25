@@ -29,6 +29,9 @@ export type Submission = {
   posting_tier: string | null;
   posting_speed: string | null;
   price_cents: number | null;
+  original_price_cents: number | null;
+  discount_cents: number;
+  promo_code: string | null;
   created_at: string;
   updated_at: string;
 };

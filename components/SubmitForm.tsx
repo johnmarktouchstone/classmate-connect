@@ -38,6 +38,7 @@ import {
   postingTiers,
   type PostingTierId,
 } from "@/lib/posting-tiers";
+import { applyPromoCode, normalizePromoCode } from "@/lib/promo-codes";
 
 type Preview = {
   crop: CropSettings;
@@ -567,6 +568,10 @@ export function SubmitForm({ school }: { school: School }) {
   const [currentStep, setCurrentStep] = useState<FormStep>("about");
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState<PostingTierId>(defaultPostingTierId);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState("");
+  const [promoMessage, setPromoMessage] = useState("");
+  const [promoError, setPromoError] = useState("");
   const previewsRef = useRef<Preview[]>([]);
 
   const emailIsValid = emailPattern.test(email.trim());
@@ -587,6 +592,10 @@ export function SubmitForm({ school }: { school: School }) {
           : 4;
   const progressWidth = `${(stepIndex / 4) * 100}%`;
   const selectedTier = getPostingTier(selectedTierId) ?? postingTiers[0];
+  const appliedPromo = appliedPromoCode
+    ? applyPromoCode(selectedTier.priceCents, appliedPromoCode)
+    : null;
+  const finalPriceCents = appliedPromo?.finalPriceCents ?? selectedTier.priceCents;
 
   const canSubmit = useMemo(
     () =>
@@ -645,6 +654,38 @@ export function SubmitForm({ school }: { school: School }) {
     }
 
     setCurrentStep("tier");
+  }
+
+  function applyEnteredPromoCode() {
+    const normalizedCode = normalizePromoCode(promoCodeInput);
+    setPromoError("");
+    setPromoMessage("");
+
+    if (!normalizedCode) {
+      setAppliedPromoCode("");
+      setPromoError("Enter a promo code first.");
+      return;
+    }
+
+    const promo = applyPromoCode(selectedTier.priceCents, normalizedCode);
+
+    if (!promo) {
+      setAppliedPromoCode("");
+      setPromoError("Promo code is invalid.");
+      return;
+    }
+
+    setAppliedPromoCode(promo.code);
+    setPromoMessage(`${promo.code} applied: ${promo.description}.`);
+    setSubmissionId("");
+  }
+
+  function removePromoCode() {
+    setAppliedPromoCode("");
+    setPromoCodeInput("");
+    setPromoMessage("");
+    setPromoError("");
+    setSubmissionId("");
   }
 
   useEffect(() => {
@@ -778,6 +819,7 @@ export function SubmitForm({ school }: { school: School }) {
           caption,
           image_urls: imageUrls,
           posting_tier: selectedTierId,
+          promo_code: appliedPromoCode,
           consent,
         }),
       });
@@ -1150,9 +1192,55 @@ export function SubmitForm({ school }: { school: School }) {
                 </p>
               </div>
 
+              <div className="grid gap-2 rounded-lg border border-ink/10 bg-linen p-4">
+                <label className="grid gap-2">
+                  <span className="text-sm font-semibold text-ink">Promo code</span>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <input
+                      className="min-h-12 rounded-lg border border-ink/15 bg-white px-4 py-3 text-base uppercase outline-none transition placeholder:normal-case placeholder:text-ink/35 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                      disabled={isSubmitting}
+                      onChange={(event) => {
+                        setPromoCodeInput(event.target.value);
+                        setPromoError("");
+                        setPromoMessage("");
+                      }}
+                      placeholder="Have a promo code?"
+                      value={promoCodeInput}
+                    />
+                    <button
+                      className="min-h-12 rounded-lg bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isSubmitting}
+                      onClick={applyEnteredPromoCode}
+                      type="button"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </label>
+                {promoError && (
+                  <p className="text-sm font-medium text-red-700">{promoError}</p>
+                )}
+                {promoMessage && (
+                  <div className="flex flex-col gap-2 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800 sm:flex-row sm:items-center sm:justify-between">
+                    <span>{promoMessage}</span>
+                    <button
+                      className="font-semibold underline"
+                      onClick={removePromoCode}
+                      type="button"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="grid gap-3">
                 {postingTiers.map((tier) => {
                   const isSelected = selectedTierId === tier.id;
+                  const tierPromo = appliedPromoCode
+                    ? applyPromoCode(tier.priceCents, appliedPromoCode)
+                    : null;
+                  const tierPriceCents = tierPromo?.finalPriceCents ?? tier.priceCents;
 
                   return (
                     <button
@@ -1165,6 +1253,14 @@ export function SubmitForm({ school }: { school: School }) {
                       key={tier.id}
                       onClick={() => {
                         setSelectedTierId(tier.id);
+                        if (appliedPromoCode) {
+                          const nextPromo = applyPromoCode(tier.priceCents, appliedPromoCode);
+                          setPromoMessage(
+                            nextPromo
+                              ? `${nextPromo.code} applied: ${nextPromo.description}.`
+                              : "",
+                          );
+                        }
                         setSubmissionId("");
                       }}
                       type="button"
@@ -1182,8 +1278,16 @@ export function SubmitForm({ school }: { school: School }) {
                             )}
                           </div>
                           <p className="mt-3 text-3xl font-bold text-ink">
-                            {formatTierPrice(tier.priceCents)}
+                            {formatTierPrice(tierPriceCents)}
                           </p>
+                          {tierPromo && (
+                            <p className="mt-1 text-sm font-semibold text-green-700">
+                              <span className="text-ink/45 line-through">
+                                {formatTierPrice(tier.priceCents)}
+                              </span>{" "}
+                              {formatTierPrice(tierPromo.discountCents)} off
+                            </p>
+                          )}
                           <p className="mt-2 text-sm text-ink/60">
                             {tier.speedLabel}
                           </p>
@@ -1216,13 +1320,16 @@ export function SubmitForm({ school }: { school: School }) {
                   type="submit"
                 >
                   {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
-                  Continue to Payment ({formatTierPrice(selectedTier.priceCents)})
+                  {finalPriceCents === 0
+                    ? "Submit Free Post"
+                    : `Continue to Payment (${formatTierPrice(finalPriceCents)})`}
                 </button>
               </div>
 
               <p className="text-center text-xs leading-5 text-ink/50">
-                You'll be redirected to secure checkout. The checkout is billed
-                monthly through Stripe.
+                {finalPriceCents === 0
+                  ? "Your promo code covers the full price, so no Stripe checkout is needed."
+                  : "You'll be redirected to secure checkout. The checkout is billed monthly through Stripe."}
               </p>
             </section>
           )}

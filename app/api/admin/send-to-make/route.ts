@@ -17,6 +17,9 @@ type SubmissionForMake = {
   posting_tier: string | null;
   posting_speed: string | null;
   price_cents: number | null;
+  original_price_cents: number | null;
+  discount_cents: number | null;
+  promo_code: string | null;
 };
 
 function buildMakePayload(submission: SubmissionForMake) {
@@ -41,7 +44,10 @@ function buildMakePayload(submission: SubmissionForMake) {
     instagram_handle: submission.instagram_handle,
     posting_tier: submission.posting_tier,
     posting_speed: submission.posting_speed,
-    price_cents: submission.price_cents
+    price_cents: submission.price_cents,
+    original_price_cents: submission.original_price_cents,
+    discount_cents: submission.discount_cents,
+    promo_code: submission.promo_code
   };
 }
 
@@ -62,7 +68,7 @@ export async function POST(request: Request) {
   const supabase = createServiceSupabaseClient();
   const { data: submission, error } = await supabase
     .from("submissions")
-    .select("id, school, full_name, email, instagram_handle, caption, image_urls, payment_status, post_status, posting_tier, posting_speed, price_cents")
+    .select("id, school, full_name, email, instagram_handle, caption, image_urls, payment_status, post_status, posting_tier, posting_speed, price_cents, original_price_cents, discount_cents, promo_code")
     .eq("id", submissionId)
     .single();
 

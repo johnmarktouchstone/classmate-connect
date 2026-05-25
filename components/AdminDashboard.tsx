@@ -68,8 +68,13 @@ function getTierDisplay(submission: Submission) {
   const tier = postingTiers.find((postingTier) => postingTier.id === submission.posting_tier);
 
   return {
+    discount: submission.discount_cents,
     label: tier?.label ?? (submission.posting_tier ? formatStatus(submission.posting_tier) : "Not selected"),
+    originalPrice: submission.original_price_cents
+      ? formatTierPrice(submission.original_price_cents)
+      : null,
     price: formatTierPrice(submission.price_cents),
+    promoCode: submission.promo_code,
     speed: submission.posting_speed || tier?.speedLabel || "No timing selected",
   };
 }
@@ -617,6 +622,13 @@ export function AdminDashboard() {
                         <p className="mt-1 text-xs font-medium text-ink/55">
                           {getTierDisplay(submission).price} · {getTierDisplay(submission).speed}
                         </p>
+                        {getTierDisplay(submission).promoCode && (
+                          <p className="mt-1 text-xs font-semibold text-green-700">
+                            {getTierDisplay(submission).promoCode}:{" "}
+                            {getTierDisplay(submission).originalPrice} -{" "}
+                            {formatTierPrice(getTierDisplay(submission).discount)} off
+                          </p>
+                        )}
                       </div>
                       <div className="rounded-lg border border-ink/10 bg-white px-4 py-3 shadow-sm">
                         <p className="text-[11px] font-bold uppercase tracking-wide text-ink/45">
