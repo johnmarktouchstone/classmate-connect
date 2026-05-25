@@ -585,8 +585,6 @@ export function SubmitForm({ school }: { school: School }) {
   const [submissionId, setSubmissionId] = useState("");
   const [submittedImageUrls, setSubmittedImageUrls] = useState<string[]>([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
-  const [draggingPhotoIndex, setDraggingPhotoIndex] = useState<number | null>(null);
-  const [dragOverPhotoIndex, setDragOverPhotoIndex] = useState<number | null>(null);
   const [currentStep, setCurrentStep] = useState<FormStep>("about");
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState<PostingTierId>(defaultPostingTierId);
@@ -595,12 +593,6 @@ export function SubmitForm({ school }: { school: School }) {
   const [promoMessage, setPromoMessage] = useState("");
   const [promoError, setPromoError] = useState("");
   const previewsRef = useRef<Preview[]>([]);
-  const photoDragRef = useRef<{
-    didDrag: boolean;
-    index: number;
-    x: number;
-    y: number;
-  } | null>(null);
 
   const emailIsValid = emailPattern.test(email.trim());
   const aboutFieldsComplete =
@@ -818,75 +810,6 @@ export function SubmitForm({ school }: { school: School }) {
       setIsCropModalOpen(false);
     }
     resetSavedSubmission();
-  }
-
-  function movePhoto(fromIndex: number, toIndex: number) {
-    if (fromIndex === toIndex || toIndex < 0 || toIndex >= previews.length) return;
-
-    setPreviews((currentPreviews) => {
-      const nextPreviews = [...currentPreviews];
-      const [movedPreview] = nextPreviews.splice(fromIndex, 1);
-      nextPreviews.splice(toIndex, 0, movedPreview);
-      return nextPreviews;
-    });
-
-    setSelectedPhotoIndex((currentIndex) => {
-      if (currentIndex === fromIndex) return toIndex;
-      if (fromIndex < currentIndex && toIndex >= currentIndex) return currentIndex - 1;
-      if (fromIndex > currentIndex && toIndex <= currentIndex) return currentIndex + 1;
-      return currentIndex;
-    });
-    resetSavedSubmission();
-  }
-
-  function getPhotoIndexAtPoint(clientX: number, clientY: number) {
-    const target = document.elementFromPoint(clientX, clientY);
-    const photoTile = target?.closest("[data-photo-index]");
-    const index = photoTile?.getAttribute("data-photo-index");
-    return index ? Number(index) : null;
-  }
-
-  function startPhotoDrag(event: PointerEvent<HTMLDivElement>, index: number) {
-    if (isSubmitting) return;
-
-    photoDragRef.current = {
-      didDrag: false,
-      index,
-      x: event.clientX,
-      y: event.clientY,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function updatePhotoDrag(event: PointerEvent<HTMLDivElement>) {
-    const drag = photoDragRef.current;
-    if (!drag || isSubmitting) return;
-
-    const distance = Math.hypot(event.clientX - drag.x, event.clientY - drag.y);
-    if (distance < 8 && !drag.didDrag) return;
-
-    drag.didDrag = true;
-    setDraggingPhotoIndex(drag.index);
-    setDragOverPhotoIndex(getPhotoIndexAtPoint(event.clientX, event.clientY));
-  }
-
-  function finishPhotoDrag(event: PointerEvent<HTMLDivElement>, index: number) {
-    const drag = photoDragRef.current;
-    photoDragRef.current = null;
-
-    const targetIndex = getPhotoIndexAtPoint(event.clientX, event.clientY);
-    setDraggingPhotoIndex(null);
-    setDragOverPhotoIndex(null);
-
-    if (!drag?.didDrag) {
-      setSelectedPhotoIndex(index);
-      setIsCropModalOpen(true);
-      return;
-    }
-
-    if (typeof targetIndex === "number") {
-      movePhoto(drag.index, targetIndex);
-    }
   }
 
   function updateCrop(index: number, crop: Partial<CropSettings>) {
@@ -1174,44 +1097,29 @@ export function SubmitForm({ school }: { school: School }) {
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {previews.map((preview, index) => (
                       <div
-                        className={`relative aspect-[4/5] touch-none select-none overflow-hidden rounded-lg bg-ink/5 ring-offset-2 transition ${
+                        className={`relative aspect-[4/5] overflow-hidden rounded-lg bg-ink/5 ring-offset-2 transition ${
                           index === 0
                             ? "ring-2 ring-emerald-500"
                             : selectedPhotoIndex === index
                               ? "ring-2 ring-brand"
                               : "ring-1 ring-ink/10"
-                        } ${
-                          dragOverPhotoIndex === index
-                            ? "scale-[0.98] bg-brand/10"
-                            : ""
-                        } ${
-                          draggingPhotoIndex === index
-                            ? "cursor-grabbing opacity-70"
-                            : "cursor-grab"
                         }`}
-                        data-photo-index={index}
                         key={preview.url}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" && event.key !== " ") return;
-                          event.preventDefault();
-                          setSelectedPhotoIndex(index);
-                          setIsCropModalOpen(true);
-                        }}
-                        onPointerCancel={() => {
-                          photoDragRef.current = null;
-                          setDraggingPhotoIndex(null);
-                          setDragOverPhotoIndex(null);
-                        }}
-                        onPointerDown={(event) => startPhotoDrag(event, index)}
-                        onPointerMove={updatePhotoDrag}
-                        onPointerUp={(event) => finishPhotoDrag(event, index)}
-                        role="button"
-                        tabIndex={0}
                       >
-                        <CroppedPreviewImage
-                          alt={`Upload preview ${index + 1}`}
-                          preview={preview}
-                        />
+                        <button
+                          className="h-full w-full"
+                          disabled={isSubmitting}
+                          onClick={() => {
+                            setSelectedPhotoIndex(index);
+                            setIsCropModalOpen(true);
+                          }}
+                          type="button"
+                        >
+                          <CroppedPreviewImage
+                            alt={`Upload preview ${index + 1}`}
+                            preview={preview}
+                          />
+                        </button>
                         {index === 0 ? (
                           <span className="absolute left-2 top-2 rounded-full bg-emerald-500 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-white shadow">
                             Cover
@@ -1229,7 +1137,6 @@ export function SubmitForm({ school }: { school: School }) {
                             event.stopPropagation();
                             removePhoto(index);
                           }}
-                          onPointerDown={(event) => event.stopPropagation()}
                           type="button"
                         >
                           <X className="h-4 w-4" />
@@ -1239,7 +1146,7 @@ export function SubmitForm({ school }: { school: School }) {
                   </div>
 
                   <p className="text-center text-sm text-ink/55">
-                    Tap any photo to adjust its crop. Drag photos to reorder them. The first photo is the cover.
+                    Tap any photo to adjust its crop. The first photo is the cover.
                   </p>
                 </div>
               )}
