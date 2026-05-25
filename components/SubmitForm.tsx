@@ -669,6 +669,7 @@ export function SubmitForm({ school }: { school: School }) {
       return;
     }
 
+    setSelectedPhotoIndex(0);
     setCurrentStep("review");
   }
 
@@ -1224,11 +1225,10 @@ export function SubmitForm({ school }: { school: School }) {
             <section className="grid gap-5">
               <div className="text-center">
                 <h2 className="text-2xl font-bold tracking-tight text-ink">
-                  Review & Pay
+                  Review
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-ink/60">
-                  Check the preview, confirm consent, then continue to secure
-                  payment.
+                  Check your post preview and confirm everything looks right.
                 </p>
               </div>
 
