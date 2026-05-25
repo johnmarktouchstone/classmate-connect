@@ -80,6 +80,68 @@ function getTierDisplay(submission: Submission) {
   };
 }
 
+function getTimelineEvents(submission: Submission) {
+  const finalLabel =
+    submission.post_status === "posted"
+      ? "Posted"
+      : submission.post_status === "failed"
+        ? "Failed"
+        : submission.post_status === "rejected"
+          ? "Rejected"
+          : "Instagram";
+
+  const finalDetail =
+    submission.post_status === "posted"
+      ? [
+          submission.posted_at ? formatSubmittedAt(submission.posted_at) : "Posted by Make",
+          submission.instagram_post_id ? `ID ${submission.instagram_post_id}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : submission.post_status === "failed"
+        ? submission.error_message ?? "Make reported a failure"
+        : submission.post_status === "rejected"
+          ? "Rejected by admin"
+          : formatStatus(submission.post_status);
+
+  return [
+    {
+      detail: formatSubmittedAt(submission.created_at),
+      label: "Submitted",
+      state: "complete",
+    },
+    {
+      detail:
+        submission.payment_status === "paid"
+          ? "Payment confirmed"
+          : formatStatus(submission.payment_status),
+      label: submission.payment_status === "paid" ? "Paid" : "Payment",
+      state: submission.payment_status === "paid" ? "complete" : "pending",
+    },
+    {
+      detail: submission.make_sent_at ? formatSubmittedAt(submission.make_sent_at) : "Not sent yet",
+      label: "Sent to Make",
+      state: submission.make_sent_at ? "complete" : "pending",
+    },
+    {
+      detail: finalDetail,
+      label: finalLabel,
+      state:
+        submission.post_status === "posted"
+          ? "complete"
+          : submission.post_status === "failed" || submission.post_status === "rejected"
+            ? "failed"
+            : "pending",
+    },
+  ];
+}
+
+function getTimelineDotClass(state: string) {
+  if (state === "complete") return "bg-emerald-500";
+  if (state === "failed") return "bg-red-500";
+  return "bg-ink/20";
+}
+
 function submissionMatchesSearch(submission: Submission, searchQuery: string) {
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -679,6 +741,29 @@ export function AdminDashboard() {
                         {submission.instagram_post_id}
                       </p>
                     )}
+
+                    <div className="rounded-lg border border-ink/10 bg-white px-4 py-3 shadow-sm">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-ink/45">
+                        Timeline
+                      </p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {getTimelineEvents(submission).map((event) => (
+                          <div className="flex min-w-0 gap-3" key={event.label}>
+                            <span
+                              className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${getTimelineDotClass(
+                                event.state
+                              )}`}
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-ink">{event.label}</p>
+                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink/55">
+                                {event.detail}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                       <div className="rounded-lg border border-ink/10 bg-white px-4 py-3 shadow-sm">
