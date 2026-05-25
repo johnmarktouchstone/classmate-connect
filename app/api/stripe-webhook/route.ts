@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { requireEnv } from "@/lib/env";
+import { sendSubmissionToMake } from "@/lib/make-submissions";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 
@@ -46,6 +47,15 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (session.metadata?.posting_tier === "instant") {
+      try {
+        await sendSubmissionToMake(supabase, submissionId);
+      } catch {
+        // The helper marks the submission failed with an error message.
+        // Stripe should still receive 200 so it does not keep retrying the payment webhook.
+      }
     }
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendSubmissionToMake } from "@/lib/make-submissions";
 import { getDefaultPostingTier, getPostingTier } from "@/lib/posting-tiers";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import { getPostPriceCents, getStripe } from "@/lib/stripe";
@@ -55,6 +56,14 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      if ((submission.posting_tier ?? fallbackTier.id) === "instant") {
+        try {
+          await sendSubmissionToMake(supabase, submission.id);
+        } catch {
+          // The submission is marked failed by the helper and will show in admin.
+        }
       }
 
       return NextResponse.json({ url: `${siteUrl}/success?free=1` });
