@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, LockKeyhole, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, LockKeyhole, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { formatTierPrice } from "@/lib/posting-tiers";
 import { formatStatus, postStatuses, type PostStatus, type Submission } from "@/lib/submissions";
 
@@ -64,6 +64,11 @@ export function AdminDashboard() {
       { all: 0 }
     );
   }, [submissions]);
+
+  const failedSubmissions = useMemo(
+    () => submissions.filter((submission) => submission.post_status === "failed"),
+    [submissions]
+  );
 
   async function loadSubmissions(nextFilter = filter, nextPassword = password) {
     setIsLoading(true);
@@ -179,6 +184,17 @@ export function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!isUnlocked) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadSubmissions(filter);
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, isUnlocked, password]);
+
   if (!isUnlocked) {
     return (
       <main className="min-h-screen bg-linen px-4 py-10 text-ink">
@@ -261,6 +277,34 @@ export function AdminDashboard() {
           ))}
         </div>
 
+        {failedSubmissions.length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 shadow-soft">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  <p className="font-bold">
+                    {failedSubmissions.length} post{failedSubmissions.length === 1 ? "" : "s"} failed in Make.
+                  </p>
+                  <p className="mt-1 text-sm leading-6">
+                    {failedSubmissions[0].instagram_handle}:{" "}
+                    {failedSubmissions[0].error_message ?? "No error message was provided."}
+                  </p>
+                </div>
+              </div>
+              {filter !== "failed" && (
+                <button
+                  className="inline-flex min-h-10 items-center justify-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800"
+                  onClick={() => onFilterChange("failed")}
+                  type="button"
+                >
+                  View Failed
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
         {isLoading ? (
@@ -307,6 +351,13 @@ export function AdminDashboard() {
                     <p className="whitespace-pre-wrap rounded-lg bg-linen p-4 text-sm leading-6 text-ink/80">
                       {submission.caption}
                     </p>
+
+                    {submission.post_status === "failed" && (
+                      <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">
+                        <span className="font-semibold">Make error:</span>{" "}
+                        {submission.error_message ?? "No error message was provided."}
+                      </p>
+                    )}
 
                     <div className="flex flex-wrap gap-2 text-xs text-ink/50">
                       <span>ID: {submission.id}</span>
