@@ -81,6 +81,7 @@ export function AdminDashboard() {
   const [paidTierFilter, setPaidTierFilter] = useState<PaidTierFilter>("all");
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [hiddenSubmissionIds, setHiddenSubmissionIds] = useState<string[]>([]);
+  const [showHiddenManager, setShowHiddenManager] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [actionId, setActionId] = useState("");
   const [error, setError] = useState("");
@@ -88,6 +89,11 @@ export function AdminDashboard() {
   const visibleAdminSubmissions = useMemo(() => {
     const hiddenIds = new Set(hiddenSubmissionIds);
     return submissions.filter((submission) => !hiddenIds.has(submission.id));
+  }, [hiddenSubmissionIds, submissions]);
+
+  const hiddenSubmissions = useMemo(() => {
+    const hiddenIds = new Set(hiddenSubmissionIds);
+    return submissions.filter((submission) => hiddenIds.has(submission.id));
   }, [hiddenSubmissionIds, submissions]);
 
   const visibleSubmissions = useMemo(() => {
@@ -279,9 +285,19 @@ export function AdminDashboard() {
     });
   }
 
-  function showHiddenSubmissions() {
-    setHiddenSubmissionIds([]);
-    localStorage.removeItem(hiddenSubmissionsStorageKey);
+  function restoreSubmission(submissionId: string) {
+    setHiddenSubmissionIds((currentIds) => {
+      const nextIds = currentIds.filter((currentId) => currentId !== submissionId);
+
+      if (nextIds.length > 0) {
+        localStorage.setItem(hiddenSubmissionsStorageKey, JSON.stringify(nextIds));
+      } else {
+        localStorage.removeItem(hiddenSubmissionsStorageKey);
+        setShowHiddenManager(false);
+      }
+
+      return nextIds;
+    });
   }
 
   useEffect(() => {
@@ -369,10 +385,10 @@ export function AdminDashboard() {
             {hiddenSubmissionIds.length > 0 && (
               <button
                 className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ink/15 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-ink/5"
-                onClick={showHiddenSubmissions}
+                onClick={() => setShowHiddenManager((isOpen) => !isOpen)}
                 type="button"
               >
-                Show hidden ({hiddenSubmissionIds.length})
+                Hidden ({hiddenSubmissionIds.length})
               </button>
             )}
             <button
@@ -402,6 +418,51 @@ export function AdminDashboard() {
             </button>
           ))}
         </div>
+
+        {showHiddenManager && hiddenSubmissions.length > 0 && (
+          <section className="rounded-lg border border-ink/10 bg-white p-4 shadow-soft">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="text-base font-bold">Hidden submissions</h2>
+                <p className="text-sm text-ink/60">
+                  Restore only the ones you want back on the dashboard.
+                </p>
+              </div>
+              <button
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-ink/15 px-4 py-2 text-sm font-semibold transition hover:bg-ink/5"
+                onClick={() => setShowHiddenManager(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              {hiddenSubmissions.map((submission) => (
+                <div
+                  className="flex flex-col gap-3 rounded-lg bg-linen p-3 sm:flex-row sm:items-center sm:justify-between"
+                  key={submission.id}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-ink">
+                      {submission.full_name} · {submission.school}
+                    </p>
+                    <p className="mt-1 text-xs text-ink/55">
+                      {formatStatus(submission.post_status)} · {formatSubmittedAt(submission.created_at)}
+                    </p>
+                  </div>
+                  <button
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
+                    onClick={() => restoreSubmission(submission.id)}
+                    type="button"
+                  >
+                    Restore
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {activeTab === "paid" && (
           <div className="flex gap-2 overflow-x-auto pb-2">
