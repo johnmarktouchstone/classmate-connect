@@ -432,18 +432,24 @@ function CropAdjuster({
 function CropModal({
   disabled,
   onClose,
+  onNextPhoto,
   onReset,
   onUpdateCrop,
   preview,
   selectedPhotoIndex,
+  totalPhotos,
 }: {
   disabled: boolean;
   onClose: () => void;
+  onNextPhoto: () => void;
   onReset: () => void;
   onUpdateCrop: (crop: Partial<CropSettings>) => void;
   preview: Preview;
   selectedPhotoIndex: number;
+  totalPhotos: number;
 }) {
+  const hasNextPhoto = selectedPhotoIndex < totalPhotos - 1;
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -475,14 +481,27 @@ function CropModal({
       <div className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl sm:max-w-md sm:rounded-2xl">
         <CropAdjuster
           action={
-            <button
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
-              disabled={disabled}
-              onClick={onClose}
-              type="button"
-            >
-              Done
-            </button>
+            <div className={`grid gap-3 ${totalPhotos > 1 ? "grid-cols-2" : ""}`}>
+              <button
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
+                disabled={disabled}
+                onClick={onClose}
+                type="button"
+              >
+                Done
+              </button>
+              {totalPhotos > 1 && (
+                <button
+                  className="flex items-center justify-center gap-2 rounded-lg border border-brand bg-white px-4 py-2 text-sm font-semibold text-brand transition hover:bg-brand/5 disabled:cursor-not-allowed disabled:border-ink/15 disabled:text-ink/35"
+                  disabled={disabled || !hasNextPhoto}
+                  onClick={onNextPhoto}
+                  type="button"
+                >
+                  Next photo
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           }
           disabled={disabled}
           onReset={onReset}
@@ -1368,10 +1387,16 @@ export function SubmitForm({ school }: { school: School }) {
         <CropModal
           disabled={isSubmitting}
           onClose={() => setIsCropModalOpen(false)}
+          onNextPhoto={() =>
+            setSelectedPhotoIndex((currentIndex) =>
+              Math.min(currentIndex + 1, previews.length - 1),
+            )
+          }
           onReset={() => updateCrop(selectedPhotoIndex, defaultCrop)}
           onUpdateCrop={(crop) => updateCrop(selectedPhotoIndex, crop)}
           preview={selectedPreview}
           selectedPhotoIndex={selectedPhotoIndex}
+          totalPhotos={previews.length}
         />
       )}
     </div>
