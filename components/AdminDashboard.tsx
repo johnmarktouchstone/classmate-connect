@@ -2,10 +2,20 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, Loader2, LockKeyhole, RefreshCw, ShieldCheck, X } from "lucide-react";
-import { formatTierPrice } from "@/lib/posting-tiers";
-import { formatStatus, postStatuses, type PostStatus, type Submission } from "@/lib/submissions";
+import { formatTierPrice, postingTiers, type PostingTierId } from "@/lib/posting-tiers";
+import { formatStatus, type PostStatus, type Submission } from "@/lib/submissions";
 
-type Filter = "all" | PostStatus;
+type DashboardTab = "unpaid" | "paid" | "sent_to_make" | "failed" | "posted" | "rejected";
+type PaidTierFilter = "all" | PostingTierId;
+
+const dashboardTabs: { id: DashboardTab; label: string }[] = [
+  { id: "unpaid", label: "Unpaid" },
+  { id: "paid", label: "Paid" },
+  { id: "sent_to_make", label: "Sent to Make" },
+  { id: "failed", label: "Failed" },
+  { id: "posted", label: "Posted" },
+  { id: "rejected", label: "Rejected" },
+];
 
 const adminPasswordStorageKey = "classmate_admin_password";
 
@@ -19,6 +29,7 @@ const statusStyles: Record<PostStatus, string> = {
 };
 
 function getReviewPriority(submission: Submission) {
+  if (submission.payment_status === "unpaid" || submission.post_status === "unpaid") return 0;
   if (submission.payment_status === "paid" && submission.post_status === "needs_review") return 0;
   if (submission.post_status === "needs_review") return 1;
   if (submission.payment_status === "paid") return 2;
@@ -48,22 +59,75 @@ function getApproveLabel(submission: Submission) {
 export function AdminDashboard() {
   const [password, setPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("paid");
+  const [paidTierFilter, setPaidTierFilter] = useState<PaidTierFilter>("all");
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [actionId, setActionId] = useState("");
   const [error, setError] = useState("");
 
   const visibleSubmissions = useMemo(() => {
-    if (filter === "all") return submissions;
-    return submissions.filter((submission) => submission.post_status === filter);
-  }, [filter, submissions]);
+    let nextSubmissions = submissions.filter((submission) => {
+      if (activeTab === "paid") {
+        return submission.payment_status === "paid" && submission.post_status === "needs_review";
+      }
+
+      if (activeTab === "unpaid") {
+        return submission.payment_status === "unpaid" || submission.post_status === "unpaid";
+      }
+
+      return submission.post_status === activeTab;
+    });
+
+    if (activeTab === "paid" && paidTierFilter !== "all") {
+      nextSubmissions = nextSubmissions.filter(
+        (submission) => submission.posting_tier === paidTierFilter
+      );
+    }
+
+    return nextSubmissions;
+  }, [activeTab, paidTierFilter, submissions]);
 
   const counts = useMemo(() => {
     return submissions.reduce<Record<string, number>>(
       (nextCounts, submission) => {
+        if (submission.payment_status === "unpaid" || submission.post_status === "unpaid") {
+          nextCounts.unpaid += 1;
+        }
+
+        if (submission.payment_status === "paid" && submission.post_status === "needs_review") {
+          nextCounts.paid += 1;
+        }
+
+        if (["sent_to_make", "failed", "posted", "rejected"].includes(submission.post_status)) {
+          nextCounts[submission.post_status] = (nextCounts[submission.post_status] ?? 0) + 1;
+        }
+
+        return nextCounts;
+      },
+      {
+        failed: 0,
+        paid: 0,
+        posted: 0,
+        rejected: 0,
+        sent_to_make: 0,
+        unpaid: 0,
+      }
+    );
+  }, [submissions]);
+
+  const paidTierCounts = useMemo(() => {
+    return submissions.reduce<Record<string, number>>(
+      (nextCounts, submission) => {
+        if (submission.payment_status !== "paid" || submission.post_status !== "needs_review") {
+          return nextCounts;
+        }
+
         nextCounts.all += 1;
-        nextCounts[submission.post_status] = (nextCounts[submission.post_status] ?? 0) + 1;
+        if (submission.posting_tier) {
+          nextCounts[submission.posting_tier] = (nextCounts[submission.posting_tier] ?? 0) + 1;
+        }
+
         return nextCounts;
       },
       { all: 0 }
@@ -175,8 +239,12 @@ export function AdminDashboard() {
     void loadSubmissions(password);
   }
 
-  function onFilterChange(nextFilter: Filter) {
-    setFilter(nextFilter);
+  function onTabChange(nextTab: DashboardTab) {
+    setActiveTab(nextTab);
+
+    if (nextTab !== "paid") {
+      setPaidTierFilter("all");
+    }
   }
 
   useEffect(() => {
@@ -187,17 +255,6 @@ export function AdminDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!isUnlocked) return;
-
-    const intervalId = window.setInterval(() => {
-      void loadSubmissions();
-    }, 30000);
-
-    return () => window.clearInterval(intervalId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, isUnlocked, password]);
 
   if (!isUnlocked) {
     return (
@@ -266,20 +323,50 @@ export function AdminDashboard() {
         </header>
 
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {(["all", ...postStatuses] as Filter[]).map((status) => (
+          {dashboardTabs.map((tab) => (
             <button
               className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                filter === status ? "bg-brand text-white" : "bg-white text-ink hover:bg-ink/5"
+                activeTab === tab.id ? "bg-brand text-white" : "bg-white text-ink hover:bg-ink/5"
               }`}
-              key={status}
-              onClick={() => onFilterChange(status)}
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
               type="button"
             >
-              {status === "all" ? "All" : formatStatus(status)}
-              <span className="ml-2 opacity-70">{counts[status] ?? 0}</span>
+              {tab.label}
+              <span className="ml-2 opacity-70">{counts[tab.id] ?? 0}</span>
             </button>
           ))}
         </div>
+
+        {activeTab === "paid" && (
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <button
+              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                paidTierFilter === "all" ? "bg-ink text-white" : "bg-white text-ink hover:bg-ink/5"
+              }`}
+              onClick={() => setPaidTierFilter("all")}
+              type="button"
+            >
+              All paid
+              <span className="ml-2 opacity-70">{paidTierCounts.all ?? 0}</span>
+            </button>
+            {postingTiers.map((tier) => (
+              <button
+                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                  paidTierFilter === tier.id
+                    ? "bg-ink text-white"
+                    : "bg-white text-ink hover:bg-ink/5"
+                }`}
+                key={tier.id}
+                onClick={() => setPaidTierFilter(tier.id)}
+                type="button"
+              >
+                {tier.label}
+                <span className="ml-2 opacity-70">{paidTierCounts[tier.id] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {failedSubmissions.length > 0 && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 shadow-soft">
@@ -296,10 +383,10 @@ export function AdminDashboard() {
                   </p>
                 </div>
               </div>
-              {filter !== "failed" && (
+              {activeTab !== "failed" && (
                 <button
                   className="inline-flex min-h-10 items-center justify-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800"
-                  onClick={() => onFilterChange("failed")}
+                  onClick={() => onTabChange("failed")}
                   type="button"
                 >
                   View Failed
@@ -322,7 +409,7 @@ export function AdminDashboard() {
               <p className="mt-1 text-sm text-ink/60">
                 {submissions.length === 0
                   ? "New form entries will show up in this dashboard."
-                  : `No ${filter === "all" ? "" : formatStatus(filter).toLowerCase()} submissions right now.`}
+                  : `No ${activeTab === "paid" ? "paid" : formatStatus(activeTab).toLowerCase()} submissions right now.`}
               </p>
             </div>
           </div>
