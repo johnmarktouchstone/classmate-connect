@@ -369,6 +369,39 @@ export function AdminDashboard() {
     }
   }
 
+  async function syncStripePayment(submissionId: string) {
+    setActionId(submissionId);
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/sync-stripe-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password
+        },
+        body: JSON.stringify({ submission_id: submissionId })
+      });
+      const result = (await response.json()) as { submission?: Submission; error?: string };
+
+      if (!response.ok || !result.submission) {
+        throw new Error(result.error || "Unable to sync Stripe payment.");
+      }
+
+      setSubmissions((currentSubmissions) =>
+        sortSubmissions(
+          currentSubmissions.map((submission) =>
+            submission.id === submissionId ? result.submission! : submission
+          )
+        )
+      );
+    } catch (syncError) {
+      setError(syncError instanceof Error ? syncError.message : "Unable to sync Stripe payment.");
+    } finally {
+      setActionId("");
+    }
+  }
+
   function onLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void loadSubmissions(password);
@@ -826,6 +859,21 @@ export function AdminDashboard() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      {submission.payment_status === "unpaid" && submission.stripe_session_id && (
+                        <button
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={actionId === submission.id}
+                          onClick={() => syncStripePayment(submission.id)}
+                          type="button"
+                        >
+                          {actionId === submission.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          Sync Stripe payment
+                        </button>
+                      )}
                       <button
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={
