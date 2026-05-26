@@ -45,12 +45,14 @@ export async function syncPaidCheckoutSession(sessionId: string): Promise<SyncPa
   const shouldSendInstant =
     existingSubmission.posting_tier === "instant" &&
     !["sent_to_make", "posted", "failed"].includes(existingSubmission.post_status);
+  const nextPostStatus =
+    existingSubmission.post_status === "unpaid" ? "needs_review" : existingSubmission.post_status;
 
   const { error: updateError } = await supabase
     .from("submissions")
     .update({
       payment_status: "paid",
-      post_status: shouldSendInstant ? "needs_review" : "needs_review",
+      post_status: nextPostStatus,
       stripe_session_id: session.id,
     })
     .eq("id", submissionId);
