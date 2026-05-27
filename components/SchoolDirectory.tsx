@@ -41,7 +41,7 @@ export function SchoolDirectory({ schools }: SchoolDirectoryProps) {
           return secondSchool.studentCount - firstSchool.studentCount;
         }
 
-        return firstSchool.displayName.localeCompare(secondSchool.displayName);
+        return firstSchool.pageHeading.localeCompare(secondSchool.pageHeading);
       });
   }, [query, schools, sortMode]);
 
@@ -90,7 +90,7 @@ export function SchoolDirectory({ schools }: SchoolDirectoryProps) {
                   {school.initials}
                 </span>
                 <div>
-                  <h2 className="text-lg font-bold leading-6 tracking-tight">{school.displayName}</h2>
+                  <h2 className="text-lg font-bold leading-6 tracking-tight">{school.pageHeading}</h2>
                   <p className="mt-1 text-sm font-medium text-slate-500">{school.instagramUsername}</p>
                 </div>
               </div>
@@ -98,8 +98,6 @@ export function SchoolDirectory({ schools }: SchoolDirectoryProps) {
             </div>
 
             <p className="mt-5 text-base font-medium leading-7 text-slate-600">
-              {school.pageHeading}
-              <br />
               Class of 2031
             </p>
 

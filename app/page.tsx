@@ -46,10 +46,10 @@ export default function Home() {
                 Class of 2031
               </div>
               <h1 className="mt-8 max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                Freshman intro submissions, <span className="text-brand">organized.</span>
+                Your Class of 2031 <span className="text-brand">starts here.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-                Choose a school page to test the student submission flow for Class of 2031 accounts.
+                Post your intro, meet future classmates, and find people you&apos;d actually want to room with before freshman year begins.
               </p>
 
               <div className="mt-8 grid gap-4 text-sm font-bold text-slate-700 sm:grid-cols-3">
